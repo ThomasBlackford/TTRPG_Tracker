@@ -28,8 +28,18 @@ const api = {
   search: {
     query: (q: string) => ipcRenderer.invoke('search:query', q)
   },
+  maps: {
+    list: () => ipcRenderer.invoke('maps:list'),
+    get: (id: string) => ipcRenderer.invoke('maps:get', id),
+    save: (map: Record<string, unknown>) => ipcRenderer.invoke('maps:save', map),
+    delete: (id: string) => ipcRenderer.invoke('maps:delete', id),
+    getPins: (mapId: string) => ipcRenderer.invoke('maps:getPins', mapId),
+    savePin: (pin: Record<string, unknown>) => ipcRenderer.invoke('maps:savePin', pin),
+    deletePin: (id: string) => ipcRenderer.invoke('maps:deletePin', id)
+  },
   dialog: {
-    openImage: () => ipcRenderer.invoke('dialog:openImage')
+    openImage: () => ipcRenderer.invoke('dialog:openImage'),
+    openMapImage: () => ipcRenderer.invoke('dialog:openMapImage')
   }
 }
 

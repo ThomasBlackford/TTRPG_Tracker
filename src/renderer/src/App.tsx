@@ -4,6 +4,7 @@ import { GlobalSearch } from './components/layout/GlobalSearch'
 import { LibraryPage } from './pages/LibraryPage'
 import { PartyPage } from './pages/PartyPage'
 import { SessionsPage } from './pages/SessionsPage'
+import { MapPage } from './pages/MapPage'
 
 export function App() {
   const { currentPage } = useUIStore()
@@ -15,6 +16,7 @@ export function App() {
         {currentPage === 'library'  && <LibraryPage />}
         {currentPage === 'party'    && <PartyPage />}
         {currentPage === 'sessions' && <SessionsPage />}
+        {currentPage === 'maps'     && <MapPage />}
       </main>
       <GlobalSearch />
     </div>

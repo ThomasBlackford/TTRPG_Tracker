@@ -6,35 +6,50 @@ import { typeLabel } from './CardTypeBadge'
 
 const CARD_TYPES: CardType[] = ['npc', 'item', 'location', 'lore', 'faction']
 
-const TYPE_FIELDS: Record<CardType, { key: string; label: string; placeholder: string }[]> = {
+const ALIGNMENTS = [
+  '', // blank / unset
+  'Lawful Good', 'Neutral Good', 'Chaotic Good',
+  'Lawful Neutral', 'True Neutral', 'Chaotic Neutral',
+  'Lawful Evil', 'Neutral Evil', 'Chaotic Evil',
+  'Unaligned'
+]
+
+const NPC_STATUSES = ['', 'Alive', 'Dead', 'Unknown', 'Missing', 'Undead', 'Captured']
+
+const ITEM_RARITIES = ['', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact', 'Unique']
+
+type FieldDef = { key: string; label: string; placeholder: string; options?: string[] }
+
+const TYPE_FIELDS: Record<CardType, FieldDef[]> = {
   npc: [
-    { key: 'race', label: 'Race / Species', placeholder: 'e.g. Human, Elf, Dwarf' },
-    { key: 'role', label: 'Role / Class', placeholder: 'e.g. Blacksmith, Assassin' },
-    { key: 'affiliation', label: 'Faction / Guild', placeholder: 'e.g. The Crimson Pact' },
-    { key: 'status', label: 'Status', placeholder: 'e.g. Alive, Dead, Unknown' },
-    { key: 'voice', label: 'Voice / Mannerisms', placeholder: 'Notes for roleplay' }
+    { key: 'race',        label: 'Race / Species',   placeholder: 'e.g. Human, Elf, Dwarf' },
+    { key: 'role',        label: 'Role / Class',      placeholder: 'e.g. Blacksmith, Assassin' },
+    { key: 'alignment',   label: 'Alignment',         placeholder: '', options: ALIGNMENTS },
+    { key: 'affiliation', label: 'Faction / Guild',   placeholder: 'e.g. The Crimson Pact' },
+    { key: 'status',      label: 'Status',            placeholder: '', options: NPC_STATUSES },
+    { key: 'voice',       label: 'Voice / Mannerisms',placeholder: 'Notes for roleplay' }
   ],
   item: [
-    { key: 'rarity', label: 'Rarity', placeholder: 'e.g. Uncommon, Legendary' },
-    { key: 'value', label: 'Value', placeholder: 'e.g. 500 gp' },
-    { key: 'attunement', label: 'Attunement', placeholder: 'e.g. Requires attunement by a wizard' },
-    { key: 'holder', label: 'Current Holder', placeholder: 'Who has this item?' }
+    { key: 'rarity',     label: 'Rarity',         placeholder: '', options: ITEM_RARITIES },
+    { key: 'value',      label: 'Value',           placeholder: 'e.g. 500 gp' },
+    { key: 'attunement', label: 'Attunement',      placeholder: 'e.g. Requires attunement by a wizard' },
+    { key: 'holder',     label: 'Current Holder',  placeholder: 'Who has this item?' }
   ],
   location: [
-    { key: 'region', label: 'Region', placeholder: 'e.g. The Thornwood' },
-    { key: 'locType', label: 'Type', placeholder: 'e.g. City, Dungeon, Wilderness' },
-    { key: 'climate', label: 'Climate / Feel', placeholder: 'e.g. Cold, Foreboding' }
+    { key: 'region',  label: 'Region',       placeholder: 'e.g. The Thornwood' },
+    { key: 'locType', label: 'Type',         placeholder: 'e.g. City, Dungeon, Wilderness' },
+    { key: 'climate', label: 'Climate / Feel',placeholder: 'e.g. Cold, Foreboding' }
   ],
   lore: [
-    { key: 'category', label: 'Category', placeholder: 'e.g. History, Religion, Magic' },
-    { key: 'era', label: 'Era / Time Period', placeholder: 'e.g. The Age of Dragons' },
-    { key: 'source', label: 'Source', placeholder: 'Where did this knowledge come from?' }
+    { key: 'category', label: 'Category',      placeholder: 'e.g. History, Religion, Magic' },
+    { key: 'era',      label: 'Era / Period',   placeholder: 'e.g. The Age of Dragons' },
+    { key: 'source',   label: 'Source',         placeholder: 'Where did this knowledge come from?' }
   ],
   faction: [
-    { key: 'alignment', label: 'Alignment / Stance', placeholder: 'e.g. Neutral, Chaotic Evil' },
-    { key: 'goal', label: 'Primary Goal', placeholder: 'What does this faction want?' },
-    { key: 'leader', label: 'Leader', placeholder: 'Name of the faction head' },
-    { key: 'hq', label: 'Headquarters', placeholder: 'Where do they operate from?' }
+    { key: 'alignment', label: 'Alignment',     placeholder: '', options: ALIGNMENTS },
+    { key: 'goal',      label: 'Primary Goal',  placeholder: 'What does this faction want?' },
+    { key: 'leader',    label: 'Leader',         placeholder: 'Name of the faction head' },
+    { key: 'hq',        label: 'Headquarters',   placeholder: 'Where do they operate from?' }
   ]
 }
 
@@ -146,15 +161,29 @@ export function CardForm({ onSaved }: { onSaved: (card: Card) => void }) {
             />
           </div>
 
-          {TYPE_FIELDS[type].map(({ key, label, placeholder }) => (
+          {TYPE_FIELDS[type].map(({ key, label, placeholder, options }) => (
             <div key={key}>
               <label className="block text-xs text-slate-500 mb-1.5 uppercase tracking-wider font-medium">{label}</label>
-              <input
-                className="input"
-                value={fields[key] ?? ''}
-                onChange={(e) => setField(key, e.target.value)}
-                placeholder={placeholder}
-              />
+              {options ? (
+                <select
+                  className="input appearance-none"
+                  value={fields[key] ?? ''}
+                  onChange={(e) => setField(key, e.target.value)}
+                >
+                  {options.map((o) => (
+                    <option key={o} value={o} className="bg-surface-overlay">
+                      {o === '' ? `— Select ${label} —` : o}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <input
+                  className="input"
+                  value={fields[key] ?? ''}
+                  onChange={(e) => setField(key, e.target.value)}
+                  placeholder={placeholder}
+                />
+              )}
             </div>
           ))}
 

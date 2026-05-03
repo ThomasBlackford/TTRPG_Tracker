@@ -1,4 +1,4 @@
-import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult } from './index'
+import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult, MapData, MapPin } from './index'
 
 interface ElectronAPI {
   cards: {
@@ -25,8 +25,18 @@ interface ElectronAPI {
   search: {
     query: (q: string) => Promise<SearchResult[]>
   }
+  maps: {
+    list: () => Promise<MapData[]>
+    get: (id: string) => Promise<MapData | null>
+    save: (map: Partial<MapData> & { name: string }) => Promise<MapData>
+    delete: (id: string) => Promise<void>
+    getPins: (mapId: string) => Promise<MapPin[]>
+    savePin: (pin: Partial<MapPin> & { map_id: string }) => Promise<MapPin>
+    deletePin: (id: string) => Promise<void>
+  }
   dialog: {
     openImage: () => Promise<string | null>
+    openMapImage: () => Promise<string | null>
   }
 }
 

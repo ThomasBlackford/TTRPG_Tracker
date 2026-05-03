@@ -61,17 +61,20 @@ export function registerPartyHandlers(): void {
 
   ipcMain.handle('party:getReputation', (_e, memberId: string) => {
     return getDb().prepare(`
-      SELECT r.party_member_id, r.faction_id, r.score, c.name as faction_name
-      FROM reputation r
-      JOIN cards c ON c.id = r.faction_id
-      WHERE r.party_member_id = ?
-    `).all(memberId)
+      SELECT c.id as faction_id, c.name as faction_name,
+             COALESCE(r.score, 0) as score,
+             ? as party_member_id
+      FROM cards c
+      LEFT JOIN reputation r ON r.faction_id = c.id AND r.party_member_id = ?
+      WHERE c.type = 'faction'
+      ORDER BY c.name COLLATE NOCASE
+    `).all(memberId, memberId)
   })
 
   ipcMain.handle('party:setReputation', (_e, memberId: string, factionId: string, score: number) => {
     getDb().prepare(`
       INSERT INTO reputation (party_member_id, faction_id, score) VALUES (?, ?, ?)
       ON CONFLICT(party_member_id, faction_id) DO UPDATE SET score=excluded.score
-    `).run(memberId, factionId, Math.min(100, Math.max(0, score)))
+    `).run(memberId, factionId, Math.min(100, Math.max(-100, score)))
   })
 }

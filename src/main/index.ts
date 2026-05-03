@@ -6,6 +6,7 @@ import { registerCardHandlers } from './ipc/cards'
 import { registerPartyHandlers } from './ipc/party'
 import { registerSessionHandlers } from './ipc/sessions'
 import { registerSearchHandlers } from './ipc/search'
+import { registerMapHandlers } from './ipc/maps'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -50,6 +51,7 @@ app.whenReady().then(() => {
   registerPartyHandlers()
   registerSessionHandlers()
   registerSearchHandlers()
+  registerMapHandlers()
 
   createWindow()
 

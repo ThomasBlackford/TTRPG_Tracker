@@ -72,9 +72,32 @@ function createSchema(): void {
     CREATE TABLE IF NOT EXISTS reputation (
       party_member_id TEXT NOT NULL REFERENCES party_members(id) ON DELETE CASCADE,
       faction_id      TEXT NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
-      score           INTEGER NOT NULL DEFAULT 50,
+      score           INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY (party_member_id, faction_id)
     );
+
+    CREATE TABLE IF NOT EXISTS maps (
+      id          TEXT PRIMARY KEY,
+      name        TEXT NOT NULL,
+      image_path  TEXT,
+      description TEXT NOT NULL DEFAULT '',
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS map_pins (
+      id            TEXT PRIMARY KEY,
+      map_id        TEXT NOT NULL REFERENCES maps(id) ON DELETE CASCADE,
+      x             REAL NOT NULL DEFAULT 0.5,
+      y             REAL NOT NULL DEFAULT 0.5,
+      label         TEXT NOT NULL DEFAULT '',
+      card_id       TEXT REFERENCES cards(id) ON DELETE SET NULL,
+      child_map_id  TEXT REFERENCES maps(id) ON DELETE SET NULL,
+      color         TEXT NOT NULL DEFAULT '#c9a84c',
+      created_at    TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_map_pins_map ON map_pins(map_id);
 
     CREATE TABLE IF NOT EXISTS session_notes (
       id             TEXT PRIMARY KEY,

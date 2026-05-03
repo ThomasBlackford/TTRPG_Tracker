@@ -58,4 +58,25 @@ export interface SearchResult {
   is_public: number
 }
 
-export type Page = 'library' | 'party' | 'sessions'
+export interface MapData {
+  id: string
+  name: string
+  image_path: string | null
+  description: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MapPin {
+  id: string
+  map_id: string
+  x: number
+  y: number
+  label: string
+  card_id: string | null
+  child_map_id: string | null
+  color: string
+  created_at: string
+}
+
+export type Page = 'library' | 'party' | 'sessions' | 'maps'

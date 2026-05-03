@@ -4,12 +4,14 @@ import type { PartyMember } from '../types'
 import { useUIStore } from '../store/uiStore'
 import { PartyMemberSlot } from '../components/party/PartyMemberSlot'
 import { MemberForm } from '../components/party/MemberForm'
+import { MemberDetailModal } from '../components/party/MemberDetailModal'
 import { InitiativeTracker } from '../components/party/InitiativeTracker'
 
 export function PartyPage() {
   const { memberForm, openMemberForm } = useUIStore()
   const [members, setMembers] = useState<PartyMember[]>([])
   const [loading, setLoading] = useState(true)
+  const [detailMember, setDetailMember] = useState<PartyMember | null>(null)
 
   useEffect(() => {
     loadMembers()
@@ -44,7 +46,9 @@ export function PartyPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="font-display text-xl font-semibold text-white">The Party</h2>
-            <p className="text-slate-500 text-sm mt-0.5">{members.length} adventurer{members.length !== 1 ? 's' : ''}</p>
+            <p className="text-slate-500 text-sm mt-0.5">
+              {members.length} adventurer{members.length !== 1 ? 's' : ''} · click a member to view faction reputation
+            </p>
           </div>
           <button onClick={() => openMemberForm()} className="btn-primary flex items-center gap-2">
             <Plus size={14} />
@@ -73,6 +77,7 @@ export function PartyPage() {
                   onUpdate={handleUpdate}
                   onDelete={() => handleDelete(m.id)}
                   onEdit={() => openMemberForm(m.id)}
+                  onOpenDetail={() => setDetailMember(m)}
                 />
               ))}
             </div>
@@ -93,6 +98,12 @@ export function PartyPage() {
       </div>
 
       {memberForm.open && <MemberForm onSaved={handleSaved} />}
+      {detailMember && (
+        <MemberDetailModal
+          member={detailMember}
+          onClose={() => setDetailMember(null)}
+        />
+      )}
     </div>
   )
 }
