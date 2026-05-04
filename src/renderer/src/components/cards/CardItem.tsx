@@ -35,7 +35,7 @@ export function CardItem({ card, onClick, isSelected }: {
         >
           {card.image_path ? (
             <img
-              src={`file://${card.image_path}`}
+              src={`file:///${card.image_path.replace(/\\/g, '/')}`}
               alt={card.name}
               className="w-full h-full object-cover rounded-lg"
             />

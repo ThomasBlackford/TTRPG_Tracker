@@ -9,6 +9,7 @@ export function initDb(userDataPath: string): void {
   db.pragma('journal_mode = WAL')
   db.pragma('foreign_keys = ON')
   createSchema()
+  runMigrations()
 }
 
 export function getDb(): Database.Database {
@@ -108,5 +109,42 @@ function createSchema(): void {
       session_date   TEXT NOT NULL,
       created_at     TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS schema_version (
+      version INTEGER NOT NULL DEFAULT 0
+    );
   `)
+}
+
+function runMigrations(): void {
+  const d = getDb()
+
+  let row = d.prepare('SELECT version FROM schema_version').get() as { version: number } | undefined
+  if (!row) {
+    d.prepare('INSERT INTO schema_version (version) VALUES (0)').run()
+    row = { version: 0 }
+  }
+
+  const v = row.version
+
+  if (v < 1) {
+    // Add scale + grid offset columns to maps, create map_fog table
+    const cols = d.prepare("PRAGMA table_info(maps)").all() as { name: string }[]
+    const colNames = new Set(cols.map(c => c.name))
+    if (!colNames.has('scale_pixels_per_unit')) d.exec('ALTER TABLE maps ADD COLUMN scale_pixels_per_unit REAL NOT NULL DEFAULT 50.0')
+    if (!colNames.has('scale_feet_per_unit'))   d.exec('ALTER TABLE maps ADD COLUMN scale_feet_per_unit   REAL NOT NULL DEFAULT 5.0')
+    if (!colNames.has('grid_offset_x'))         d.exec('ALTER TABLE maps ADD COLUMN grid_offset_x         REAL NOT NULL DEFAULT 0.0')
+    if (!colNames.has('grid_offset_y'))         d.exec('ALTER TABLE maps ADD COLUMN grid_offset_y         REAL NOT NULL DEFAULT 0.0')
+
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS map_fog (
+        map_id     TEXT PRIMARY KEY REFERENCES maps(id) ON DELETE CASCADE,
+        grid_cols  INTEGER NOT NULL DEFAULT 64,
+        grid_rows  INTEGER NOT NULL DEFAULT 64,
+        cells      TEXT NOT NULL DEFAULT '',
+        updated_at TEXT NOT NULL
+      )
+    `)
+    d.prepare('UPDATE schema_version SET version = 1').run()
+  }
 }

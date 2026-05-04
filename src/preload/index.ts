@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 
 const api = {
   cards: {
@@ -35,7 +35,44 @@ const api = {
     delete: (id: string) => ipcRenderer.invoke('maps:delete', id),
     getPins: (mapId: string) => ipcRenderer.invoke('maps:getPins', mapId),
     savePin: (pin: Record<string, unknown>) => ipcRenderer.invoke('maps:savePin', pin),
-    deletePin: (id: string) => ipcRenderer.invoke('maps:deletePin', id)
+    deletePin: (id: string) => ipcRenderer.invoke('maps:deletePin', id),
+    // Fog of war
+    getFog: (mapId: string) => ipcRenderer.invoke('maps:getFog', mapId),
+    saveFog: (data: { mapId: string; fogState: unknown }) => ipcRenderer.invoke('maps:saveFog', data),
+    deleteFog: (mapId: string) => ipcRenderer.invoke('maps:deleteFog', mapId),
+    // Session-only push (no DB)
+    pushRuler: (data: unknown) => ipcRenderer.invoke('maps:pushRuler', data),
+    pushSpotlight: (data: unknown) => ipcRenderer.invoke('maps:pushSpotlight', data),
+    pushGrid: (data: unknown) => ipcRenderer.invoke('maps:pushGrid', data),
+    // Presentation window
+    openPresentation: (mapId: string) => ipcRenderer.invoke('maps:openPresentation', mapId),
+    closePresentation: () => ipcRenderer.invoke('maps:closePresentation'),
+    // Event subscriptions (return cleanup fn)
+    onPresentUpdate: (cb: (mapId: string) => void) => {
+      const handler = (_e: IpcRendererEvent, mapId: string) => cb(mapId)
+      ipcRenderer.on('maps:presentUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:presentUpdate', handler)
+    },
+    onFogUpdate: (cb: (data: { mapId: string; fogState: unknown }) => void) => {
+      const handler = (_e: IpcRendererEvent, data: { mapId: string; fogState: unknown }) => cb(data)
+      ipcRenderer.on('maps:fogUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:fogUpdate', handler)
+    },
+    onRulerUpdate: (cb: (data: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
+      ipcRenderer.on('maps:rulerUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:rulerUpdate', handler)
+    },
+    onSpotlightUpdate: (cb: (data: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
+      ipcRenderer.on('maps:spotlightUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:spotlightUpdate', handler)
+    },
+    onGridUpdate: (cb: (data: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
+      ipcRenderer.on('maps:gridUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:gridUpdate', handler)
+    },
   },
   dialog: {
     openImage: () => ipcRenderer.invoke('dialog:openImage'),

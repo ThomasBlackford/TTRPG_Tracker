@@ -63,6 +63,10 @@ export interface MapData {
   name: string
   image_path: string | null
   description: string
+  scale_pixels_per_unit: number   // natural image pixels per grid unit (default 50)
+  scale_feet_per_unit: number     // real-world feet per grid unit (default 5)
+  grid_offset_x: number           // grid x offset in natural image pixels
+  grid_offset_y: number           // grid y offset in natural image pixels
   created_at: string
   updated_at: string
 }
@@ -78,5 +82,25 @@ export interface MapPin {
   color: string
   created_at: string
 }
+
+export interface FogState {
+  gridCols: number  // default 64
+  gridRows: number  // default 64
+  cells: number[]   // flat array, 0=fogged, 1=revealed; length = gridCols*gridRows
+}
+
+export interface RulerState {
+  start: { x: number; y: number } | null   // normalized 0-1 image coords
+  end:   { x: number; y: number } | null
+  frozen: boolean
+  shareToPlayers: boolean
+}
+
+export interface SpotlightState {
+  x: number   // normalized 0-1
+  y: number
+}
+
+export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | null
 
 export type Page = 'library' | 'party' | 'sessions' | 'maps'

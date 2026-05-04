@@ -71,7 +71,7 @@ export function CardDetail({ card, onRefresh }: { card: Card; onRefresh: () => v
         {card.image_path && (
           <div className="aspect-video w-full overflow-hidden">
             <img
-              src={`file://${card.image_path}`}
+              src={`file:///${card.image_path.replace(/\\/g, '/')}`}
               alt={card.name}
               className="w-full h-full object-cover"
             />

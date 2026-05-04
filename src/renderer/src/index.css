@@ -35,6 +35,24 @@
   }
 }
 
+@keyframes fog-drift {
+  0%   { transform: translate(0px,  0px); }
+  25%  { transform: translate(-6px, -3px); }
+  50%  { transform: translate(4px,  5px); }
+  75%  { transform: translate(-3px, 2px); }
+  100% { transform: translate(0px,  0px); }
+}
+
+@keyframes spotlight-pulse {
+  0%, 100% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
+  50%       { opacity: 0.5; transform: translate(-50%, -50%) scale(1.08); }
+}
+
+.fog-layer-animated {
+  animation: fog-drift 14s ease-in-out infinite;
+  filter: url(#fog-filter);
+}
+
 @layer components {
   .card-border-npc    { border-color: #3b82f6; }
   .card-border-item   { border-color: #22c55e; }
