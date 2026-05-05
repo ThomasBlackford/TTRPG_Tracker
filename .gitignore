@@ -28,3 +28,6 @@ Thumbs.db
 
 # Claude AI context file (not needed for contributors)
 CLAUDE.md
+
+# Claude Code session data
+.claude/

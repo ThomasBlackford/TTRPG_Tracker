@@ -1,12 +1,13 @@
 {
   "name": "lorekeeper",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TTRPG campaign manager for Dungeon Masters",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
     "build": "electron-vite build",
     "preview": "electron-vite preview",
+    "dist": "electron-vite build && electron-builder --win",
     "postinstall": "electron-builder install-app-deps",
     "typecheck": "tsc --noEmit"
   },
@@ -41,6 +42,7 @@
     "productName": "LoreKeeper",
     "extraResources": [],
     "files": ["out/**/*"],
+    "asarUnpack": ["node_modules/better-sqlite3/**/*"],
     "win": { "target": "nsis" },
     "mac": { "target": "dmg" },
     "linux": { "target": "AppImage" }
