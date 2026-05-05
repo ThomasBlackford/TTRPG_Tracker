@@ -43,7 +43,7 @@
     "extraResources": [],
     "files": ["out/**/*"],
     "asarUnpack": ["node_modules/better-sqlite3/**/*"],
-    "win": { "target": "nsis" },
+    "win": { "target": "nsis", "signDlls": false },
     "mac": { "target": "dmg" },
     "linux": { "target": "AppImage" }
   }
