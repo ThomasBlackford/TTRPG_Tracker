@@ -1,4 +1,4 @@
-import { BookOpen, Users, ScrollText, Search, Map } from 'lucide-react'
+import { BookOpen, Users, ScrollText, Search, Map, Swords, CalendarDays } from 'lucide-react'
 import { useUIStore } from '../../store/uiStore'
 import type { Page } from '../../types'
 
@@ -6,7 +6,9 @@ const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
   { page: 'library',  label: 'Library',  icon: <BookOpen size={18} /> },
   { page: 'party',    label: 'Party',    icon: <Users size={18} /> },
   { page: 'sessions', label: 'Sessions', icon: <ScrollText size={18} /> },
-  { page: 'maps',     label: 'Maps',     icon: <Map size={18} /> }
+  { page: 'maps',     label: 'Maps',     icon: <Map size={18} /> },
+  { page: 'encounter', label: 'Encounter', icon: <Swords size={18} /> },
+  { page: 'timeline',  label: 'Timeline',  icon: <CalendarDays size={18} /> }
 ]
 
 export function Sidebar() {

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { X, Image } from 'lucide-react'
+import { X, Image, Lock } from 'lucide-react'
 import type { Card, CardType } from '../../types'
 import { useUIStore } from '../../store/uiStore'
 import { typeLabel } from './CardTypeBadge'
+import { CardSearchPicker } from './CardSearchPicker'
 
 const CARD_TYPES: CardType[] = ['npc', 'item', 'location', 'lore', 'faction']
 
@@ -66,6 +67,9 @@ export function CardForm({ onSaved }: { onSaved: (card: Card) => void }) {
   )
   const [imagePath, setImagePath] = useState<string | null>(editingCard?.image_path ?? null)
   const [isPublic, setIsPublic] = useState(editingCard?.is_public === 1)
+  const [linkedCards, setLinkedCards] = useState<string[]>(editingCard?.linked_cards ?? [])
+  const [parentId, setParentId] = useState<string | null>(editingCard?.parent_id ?? null)
+  const [dmNotes, setDmNotes] = useState(editingCard?.dm_notes ?? '')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -93,7 +97,10 @@ export function CardForm({ onSaved }: { onSaved: (card: Card) => void }) {
         tags: tags.split(',').map(t => t.trim()).filter(Boolean),
         fields,
         image_path: imagePath,
-        is_public: isPublic ? 1 : 0
+        is_public: isPublic ? 1 : 0,
+        linked_cards: linkedCards,
+        parent_id: parentId,
+        dm_notes: dmNotes.trim(),
       } as Parameters<typeof window.api.cards.save>[0])
       onSaved(saved)
       closeCardForm()
@@ -217,6 +224,41 @@ export function CardForm({ onSaved }: { onSaved: (card: Card) => void }) {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Parent location (location type only) */}
+          {type === 'location' && (
+            <CardSearchPicker
+              label="Parent Location"
+              selectedIds={parentId ? [parentId] : []}
+              onChange={ids => setParentId(ids[0] ?? null)}
+              filterType="location"
+              excludeId={editingCard?.id}
+              placeholder="Search locations…"
+              maxItems={1}
+            />
+          )}
+
+          <CardSearchPicker
+            label="Linked Cards"
+            selectedIds={linkedCards}
+            onChange={setLinkedCards}
+            excludeId={editingCard?.id}
+            placeholder="Search all cards…"
+          />
+
+          <div>
+            <label className="flex items-center gap-1.5 text-xs text-amber-500/70 mb-1.5 uppercase tracking-wider font-medium">
+              <Lock size={11} /> DM Notes (private)
+            </label>
+            <textarea
+              className="input resize-none text-sm text-amber-200/80 bg-amber-500/5 border-amber-500/20
+                         focus:border-amber-500/40 placeholder:text-amber-500/30"
+              rows={3}
+              value={dmNotes}
+              onChange={(e) => setDmNotes(e.target.value)}
+              placeholder="Private notes — never shown to players…"
+            />
           </div>
 
           <label className="flex items-center gap-3 cursor-pointer">

@@ -4,8 +4,16 @@ const api = {
   cards: {
     list: (filter?: { type?: string }) => ipcRenderer.invoke('cards:list', filter),
     get: (id: string) => ipcRenderer.invoke('cards:get', id),
+    getMany: (ids: string[]) => ipcRenderer.invoke('cards:getMany', ids),
+    getBacklinks: (cardId: string) => ipcRenderer.invoke('cards:getBacklinks', cardId),
+    getChildren: (parentId: string) => ipcRenderer.invoke('cards:getChildren', parentId),
     save: (card: Record<string, unknown>) => ipcRenderer.invoke('cards:save', card),
     delete: (id: string) => ipcRenderer.invoke('cards:delete', id)
+  },
+  timeline: {
+    list: () => ipcRenderer.invoke('timeline:list'),
+    save: (event: Record<string, unknown>) => ipcRenderer.invoke('timeline:save', event),
+    delete: (id: string) => ipcRenderer.invoke('timeline:delete', id),
   },
   party: {
     getMembers: () => ipcRenderer.invoke('party:getMembers'),
@@ -47,6 +55,12 @@ const api = {
     // Presentation window
     openPresentation: (mapId: string) => ipcRenderer.invoke('maps:openPresentation', mapId),
     closePresentation: () => ipcRenderer.invoke('maps:closePresentation'),
+    // Handout
+    pushHandout: (imagePath: string) => ipcRenderer.invoke('maps:pushHandout', imagePath),
+    clearHandout: () => ipcRenderer.invoke('maps:clearHandout'),
+    // Scene
+    setScene: (data: unknown) => ipcRenderer.invoke('maps:setScene', data),
+    clearScene: () => ipcRenderer.invoke('maps:clearScene'),
     // Event subscriptions (return cleanup fn)
     onPresentUpdate: (cb: (mapId: string) => void) => {
       const handler = (_e: IpcRendererEvent, mapId: string) => cb(mapId)
@@ -72,6 +86,31 @@ const api = {
       const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
       ipcRenderer.on('maps:gridUpdate', handler)
       return () => ipcRenderer.removeListener('maps:gridUpdate', handler)
+    },
+    onHandoutUpdate: (cb: (data: { imagePath: string } | null) => void) => {
+      const handler = (_e: IpcRendererEvent, data: { imagePath: string } | null) => cb(data)
+      ipcRenderer.on('maps:handoutUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:handoutUpdate', handler)
+    },
+    onSceneUpdate: (cb: (data: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
+      ipcRenderer.on('maps:sceneUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:sceneUpdate', handler)
+    },
+  },
+  encounter: {
+    getState: () => ipcRenderer.invoke('encounter:getState'),
+    start: () => ipcRenderer.invoke('encounter:start'),
+    end: () => ipcRenderer.invoke('encounter:end'),
+    addMonster: (data: unknown) => ipcRenderer.invoke('encounter:addMonster', data),
+    updateCombatant: (id: string, changes: unknown) => ipcRenderer.invoke('encounter:updateCombatant', id, changes),
+    removeCombatant: (id: string) => ipcRenderer.invoke('encounter:removeCombatant', id),
+    nextTurn: () => ipcRenderer.invoke('encounter:nextTurn'),
+    prevTurn: () => ipcRenderer.invoke('encounter:prevTurn'),
+    onUpdate: (cb: (state: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, state: unknown) => cb(state)
+      ipcRenderer.on('encounter:update', handler)
+      return () => ipcRenderer.removeListener('encounter:update', handler)
     },
   },
   dialog: {

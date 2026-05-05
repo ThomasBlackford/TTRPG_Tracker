@@ -9,6 +9,20 @@ export interface Card {
   tags: string[]
   fields: Record<string, unknown>
   is_public: number
+  linked_cards: string[]
+  parent_id: string | null
+  dm_notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface TimelineEvent {
+  id: string
+  title: string
+  description: string
+  day_number: number | null
+  date_display: string
+  linked_cards: string[]
   created_at: string
   updated_at: string
 }
@@ -103,4 +117,35 @@ export interface SpotlightState {
 
 export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | null
 
-export type Page = 'library' | 'party' | 'sessions' | 'maps'
+export type Page = 'library' | 'party' | 'sessions' | 'maps' | 'encounter' | 'timeline'
+
+export type Condition =
+  'Blinded' | 'Charmed' | 'Deafened' | 'Exhausted' | 'Frightened' |
+  'Grappled' | 'Incapacitated' | 'Invisible' | 'Paralyzed' | 'Petrified' |
+  'Poisoned' | 'Prone' | 'Restrained' | 'Stunned' | 'Unconscious'
+
+export interface Combatant {
+  id: string
+  name: string
+  type: 'party' | 'monster'
+  party_member_id: string | null
+  hp_current: number | null
+  hp_max: number | null
+  ac: number | null
+  initiative: number | null
+  conditions: Condition[]
+  sort_order: number
+}
+
+export interface EncounterState {
+  isActive: boolean
+  round: number
+  currentIndex: number
+  combatants: Combatant[]
+}
+
+export interface SceneData {
+  imagePath?: string
+  title?: string
+  subtitle?: string
+}

@@ -147,4 +147,52 @@ function runMigrations(): void {
     `)
     d.prepare('UPDATE schema_version SET version = 1').run()
   }
+
+  if (v < 2) {
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS encounter_state (
+        id            INTEGER PRIMARY KEY DEFAULT 1,
+        is_active     INTEGER NOT NULL DEFAULT 0,
+        round         INTEGER NOT NULL DEFAULT 1,
+        current_index INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS encounter_combatants (
+        id              TEXT PRIMARY KEY,
+        name            TEXT NOT NULL,
+        type            TEXT NOT NULL CHECK(type IN ('party','monster')),
+        party_member_id TEXT REFERENCES party_members(id) ON DELETE CASCADE,
+        hp_current      INTEGER,
+        hp_max          INTEGER,
+        ac              INTEGER,
+        initiative      INTEGER,
+        conditions      TEXT NOT NULL DEFAULT '[]',
+        sort_order      INTEGER NOT NULL DEFAULT 0
+      );
+    `)
+    d.prepare('UPDATE schema_version SET version = 2').run()
+  }
+
+  if (v < 3) {
+    // Cards: lore-keeping columns
+    const cardCols = d.prepare('PRAGMA table_info(cards)').all() as { name: string }[]
+    const cardColNames = new Set(cardCols.map(c => c.name))
+    if (!cardColNames.has('linked_cards')) d.exec("ALTER TABLE cards ADD COLUMN linked_cards TEXT NOT NULL DEFAULT '[]'")
+    if (!cardColNames.has('parent_id'))    d.exec('ALTER TABLE cards ADD COLUMN parent_id TEXT REFERENCES cards(id) ON DELETE SET NULL')
+    if (!cardColNames.has('dm_notes'))     d.exec("ALTER TABLE cards ADD COLUMN dm_notes TEXT NOT NULL DEFAULT ''")
+
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS timeline_events (
+        id           TEXT PRIMARY KEY,
+        title        TEXT NOT NULL,
+        description  TEXT NOT NULL DEFAULT '',
+        day_number   INTEGER,
+        date_display TEXT NOT NULL DEFAULT '',
+        linked_cards TEXT NOT NULL DEFAULT '[]',
+        created_at   TEXT NOT NULL,
+        updated_at   TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_timeline_day ON timeline_events(day_number);
+    `)
+    d.prepare('UPDATE schema_version SET version = 3').run()
+  }
 }

@@ -7,6 +7,8 @@ import { registerPartyHandlers } from './ipc/party'
 import { registerSessionHandlers } from './ipc/sessions'
 import { registerSearchHandlers } from './ipc/search'
 import { registerMapHandlers } from './ipc/maps'
+import { registerEncounterHandlers } from './ipc/encounter'
+import { registerTimelineHandlers } from './ipc/timeline'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -53,6 +55,8 @@ app.whenReady().then(() => {
   registerSessionHandlers()
   registerSearchHandlers()
   registerMapHandlers()
+  registerEncounterHandlers()
+  registerTimelineHandlers()
 
   createWindow()
 

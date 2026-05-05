@@ -13,6 +13,9 @@ interface CardRow {
   tags: string
   fields: string
   is_public: number
+  linked_cards: string
+  parent_id: string | null
+  dm_notes: string
   created_at: string
   updated_at: string
 }
@@ -20,8 +23,11 @@ interface CardRow {
 function rowToCard(row: CardRow) {
   return {
     ...row,
-    tags: JSON.parse(row.tags),
-    fields: JSON.parse(row.fields)
+    tags: JSON.parse(row.tags || '[]'),
+    fields: JSON.parse(row.fields || '{}'),
+    linked_cards: JSON.parse(row.linked_cards || '[]'),
+    parent_id: row.parent_id ?? null,
+    dm_notes: row.dm_notes ?? '',
   }
 }
 
@@ -53,26 +59,57 @@ export function registerCardHandlers(): void {
 
     const tags = JSON.stringify(Array.isArray(card.tags) ? card.tags : [])
     const fields = JSON.stringify(typeof card.fields === 'object' && card.fields ? card.fields : {})
+    const linked = JSON.stringify(Array.isArray(card.linked_cards) ? card.linked_cards : [])
+    const parentId = (card.parent_id as string | null) ?? null
+    const dmNotes = (card.dm_notes as string) ?? ''
 
     if (existing) {
       db.prepare(`
-        UPDATE cards SET name=?, type=?, description=?, image_path=?, tags=?, fields=?, is_public=?, updated_at=?
+        UPDATE cards SET name=?, type=?, description=?, image_path=?, tags=?, fields=?, is_public=?,
+          linked_cards=?, parent_id=?, dm_notes=?, updated_at=?
         WHERE id=?
       `).run(
         card.name, card.type, card.description ?? '', card.image_path ?? null,
-        tags, fields, card.is_public ? 1 : 0, now, id
+        tags, fields, card.is_public ? 1 : 0,
+        linked, parentId, dmNotes, now, id
       )
     } else {
       db.prepare(`
-        INSERT INTO cards (id, name, type, description, image_path, tags, fields, is_public, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO cards (id, name, type, description, image_path, tags, fields, is_public,
+          linked_cards, parent_id, dm_notes, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, card.name, card.type, card.description ?? '', card.image_path ?? null,
-        tags, fields, card.is_public ? 1 : 0, now, now
+        tags, fields, card.is_public ? 1 : 0,
+        linked, parentId, dmNotes, now, now
       )
     }
 
     return rowToCard(db.prepare('SELECT * FROM cards WHERE id = ?').get(id) as CardRow)
+  })
+
+  ipcMain.handle('cards:getMany', (_e, ids: string[]) => {
+    if (!ids?.length) return []
+    const db = getDb()
+    const placeholders = ids.map(() => '?').join(',')
+    const rows = db.prepare(`SELECT * FROM cards WHERE id IN (${placeholders})`).all(...ids) as CardRow[]
+    return rows.map(rowToCard)
+  })
+
+  ipcMain.handle('cards:getBacklinks', (_e, cardId: string) => {
+    const db = getDb()
+    const rows = db.prepare(
+      "SELECT * FROM cards WHERE EXISTS (SELECT 1 FROM json_each(linked_cards) WHERE value = ?)"
+    ).all(cardId) as CardRow[]
+    return rows.map(rowToCard)
+  })
+
+  ipcMain.handle('cards:getChildren', (_e, parentId: string) => {
+    const db = getDb()
+    const rows = db.prepare(
+      "SELECT * FROM cards WHERE parent_id = ? ORDER BY name COLLATE NOCASE"
+    ).all(parentId) as CardRow[]
+    return rows.map(rowToCard)
   })
 
   ipcMain.handle('cards:delete', (_e, id: string) => {
