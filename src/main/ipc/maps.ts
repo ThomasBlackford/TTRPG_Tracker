@@ -2,8 +2,26 @@ import { ipcMain, app, BrowserWindow } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { getDb } from '../db'
 import { v4 as uuidv4 } from 'uuid'
-import { copyFileSync, mkdirSync, existsSync } from 'fs'
-import { join, basename } from 'path'
+import { copyFileSync, mkdirSync, existsSync, unlinkSync } from 'fs'
+import { join, basename, resolve, sep } from 'path'
+
+function getImagesDir(): string {
+  return join(app.getPath('userData'), 'images')
+}
+
+// Best-effort cleanup of a map image copied into our own images dir.
+// Never throws — a failed cleanup should never block a save/delete.
+function safeDeleteImage(imagePath: string | null | undefined): void {
+  if (!imagePath) return
+  try {
+    const dir = resolve(getImagesDir()) + sep
+    const resolved = resolve(imagePath)
+    if (!resolved.startsWith(dir)) return // only ever touch our own managed copies
+    if (existsSync(resolved)) unlinkSync(resolved)
+  } catch {
+    // ignore — orphaned file is a minor cost, a crash on delete is not
+  }
+}
 
 interface MapRow {
   id: string; name: string; image_path: string | null; description: string
@@ -37,18 +55,23 @@ export function registerMapHandlers(): void {
     const db = getDb()
     const now = new Date().toISOString()
     const id = (map.id as string) || uuidv4()
-    const existing = db.prepare('SELECT id FROM maps WHERE id = ?').get(id)
+    const existing = db.prepare('SELECT id, image_path FROM maps WHERE id = ?').get(id) as
+      { id: string; image_path: string | null } | undefined
+    const newImagePath = (map.image_path as string | null) ?? null
 
     if (existing) {
       db.prepare(`UPDATE maps SET name=?, image_path=?, description=?,
         scale_pixels_per_unit=?, scale_feet_per_unit=?, grid_offset_x=?, grid_offset_y=?,
         updated_at=? WHERE id=?`)
         .run(
-          map.name, map.image_path ?? null, map.description ?? '',
+          map.name, newImagePath, map.description ?? '',
           map.scale_pixels_per_unit ?? 50, map.scale_feet_per_unit ?? 5,
           map.grid_offset_x ?? 0, map.grid_offset_y ?? 0,
           now, id
         )
+      if (existing.image_path && existing.image_path !== newImagePath) {
+        safeDeleteImage(existing.image_path)
+      }
     } else {
       db.prepare(`INSERT INTO maps (id, name, image_path, description,
         scale_pixels_per_unit, scale_feet_per_unit, grid_offset_x, grid_offset_y,
@@ -64,7 +87,11 @@ export function registerMapHandlers(): void {
   })
 
   ipcMain.handle('maps:delete', (_e, id: string) => {
-    getDb().prepare('DELETE FROM maps WHERE id = ?').run(id)
+    const db = getDb()
+    const row = db.prepare('SELECT image_path FROM maps WHERE id = ?').get(id) as
+      { image_path: string | null } | undefined
+    db.prepare('DELETE FROM maps WHERE id = ?').run(id)
+    if (row) safeDeleteImage(row.image_path)
   })
 
   ipcMain.handle('maps:getPins', (_e, mapId: string) =>
@@ -122,6 +149,14 @@ export function registerMapHandlers(): void {
   ipcMain.handle('maps:deleteFog', (_e, mapId: string) => {
     getDb().prepare('DELETE FROM map_fog WHERE map_id = ?').run(mapId)
     pushToPlayer('maps:fogUpdate', { mapId, fogState: null })
+  })
+
+  // Broadcast-only fog update (no DB write) — used while the DM is actively
+  // dragging the fog brush, so the player screen updates live instead of
+  // only once the stroke ends. The final state is still persisted via
+  // maps:saveFog on pointer-up.
+  ipcMain.handle('maps:pushFogLive', (_e, data: { mapId: string; fogState: unknown }) => {
+    pushToPlayer('maps:fogUpdate', data)
   })
 
   // --- Session-only push channels (no DB) ---
@@ -203,7 +238,7 @@ export function registerMapHandlers(): void {
     if (result.canceled || !result.filePaths.length) return null
 
     const src = result.filePaths[0]
-    const imagesDir = join(app.getPath('userData'), 'images')
+    const imagesDir = getImagesDir()
     if (!existsSync(imagesDir)) mkdirSync(imagesDir, { recursive: true })
     const dest = join(imagesDir, `${uuidv4()}_${basename(src)}`)
     copyFileSync(src, dest)

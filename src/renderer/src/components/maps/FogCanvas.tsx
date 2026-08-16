@@ -80,7 +80,9 @@ export function FogCanvas({ fog, imgRect, pan, scale, animated, brushPreview, br
     if (imgW <= 0 || imgH <= 0) return
 
     ctx.imageSmoothingEnabled = true
-    ctx.globalAlpha = animated ? 0.93 : 0.68
+    // Player view (animated) is fully opaque — no peeking through fog.
+    // The DM's own view is left translucent so they can paint accurately.
+    ctx.globalAlpha = animated ? 1 : 0.68
     ctx.drawImage(offscreenRef.current, imgLeft, imgTop, imgW, imgH)
     ctx.globalAlpha = 1
 

@@ -1,8 +1,26 @@
 import { ipcMain, app } from 'electron'
 import { getDb } from '../db'
 import { v4 as uuidv4 } from 'uuid'
-import { copyFileSync, mkdirSync, existsSync } from 'fs'
-import { join, basename } from 'path'
+import { copyFileSync, mkdirSync, existsSync, unlinkSync } from 'fs'
+import { join, basename, resolve, sep } from 'path'
+
+function getImagesDir(): string {
+  return join(app.getPath('userData'), 'images')
+}
+
+// Best-effort cleanup of a card image copied into our own images dir.
+// Never throws — a failed cleanup should never block a save/delete.
+function safeDeleteImage(imagePath: string | null | undefined): void {
+  if (!imagePath) return
+  try {
+    const dir = resolve(getImagesDir()) + sep
+    const resolved = resolve(imagePath)
+    if (!resolved.startsWith(dir)) return // only ever touch our own managed copies
+    if (existsSync(resolved)) unlinkSync(resolved)
+  } catch {
+    // ignore — orphaned file is a minor cost, a crash on delete is not
+  }
+}
 
 interface CardRow {
   id: string
@@ -55,13 +73,15 @@ export function registerCardHandlers(): void {
     const db = getDb()
     const now = new Date().toISOString()
     const id = (card.id as string) || uuidv4()
-    const existing = db.prepare('SELECT id FROM cards WHERE id = ?').get(id)
+    const existing = db.prepare('SELECT id, image_path FROM cards WHERE id = ?').get(id) as
+      { id: string; image_path: string | null } | undefined
 
     const tags = JSON.stringify(Array.isArray(card.tags) ? card.tags : [])
     const fields = JSON.stringify(typeof card.fields === 'object' && card.fields ? card.fields : {})
     const linked = JSON.stringify(Array.isArray(card.linked_cards) ? card.linked_cards : [])
     const parentId = (card.parent_id as string | null) ?? null
     const dmNotes = (card.dm_notes as string) ?? ''
+    const newImagePath = (card.image_path as string | null) ?? null
 
     if (existing) {
       db.prepare(`
@@ -69,10 +89,13 @@ export function registerCardHandlers(): void {
           linked_cards=?, parent_id=?, dm_notes=?, updated_at=?
         WHERE id=?
       `).run(
-        card.name, card.type, card.description ?? '', card.image_path ?? null,
+        card.name, card.type, card.description ?? '', newImagePath,
         tags, fields, card.is_public ? 1 : 0,
         linked, parentId, dmNotes, now, id
       )
+      if (existing.image_path && existing.image_path !== newImagePath) {
+        safeDeleteImage(existing.image_path)
+      }
     } else {
       db.prepare(`
         INSERT INTO cards (id, name, type, description, image_path, tags, fields, is_public,
@@ -113,7 +136,11 @@ export function registerCardHandlers(): void {
   })
 
   ipcMain.handle('cards:delete', (_e, id: string) => {
-    getDb().prepare('DELETE FROM cards WHERE id = ?').run(id)
+    const db = getDb()
+    const row = db.prepare('SELECT image_path FROM cards WHERE id = ?').get(id) as
+      { image_path: string | null } | undefined
+    db.prepare('DELETE FROM cards WHERE id = ?').run(id)
+    if (row) safeDeleteImage(row.image_path)
   })
 
   ipcMain.handle('dialog:openImage', async () => {
@@ -126,7 +153,7 @@ export function registerCardHandlers(): void {
     if (result.canceled || !result.filePaths.length) return null
 
     const src = result.filePaths[0]
-    const imagesDir = join(app.getPath('userData'), 'images')
+    const imagesDir = getImagesDir()
     if (!existsSync(imagesDir)) mkdirSync(imagesDir, { recursive: true })
 
     const dest = join(imagesDir, `${uuidv4()}_${basename(src)}`)

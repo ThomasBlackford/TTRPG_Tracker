@@ -63,6 +63,9 @@ export function FogControls({ brushRadius, brushMode, onBrushRadius, onBrushMode
 
       {/* Quick actions */}
       <div className="flex items-center gap-1 ml-auto">
+        <span className="text-slate-600 italic hidden lg:inline mr-1">
+          You see through fog faintly — players see it solid.
+        </span>
         <button
           onClick={onRevealAll}
           className="px-2.5 py-1 rounded text-amber-400 hover:bg-amber-500/10 transition-colors"

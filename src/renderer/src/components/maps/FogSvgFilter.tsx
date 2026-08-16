@@ -13,7 +13,7 @@ export function FogSvgFilter() {
           <feDisplacementMap
             in="SourceGraphic"
             in2="noise"
-            scale="22"
+            scale="10"
             xChannelSelector="R"
             yChannelSelector="G"
           />

@@ -48,6 +48,7 @@ const api = {
     getFog: (mapId: string) => ipcRenderer.invoke('maps:getFog', mapId),
     saveFog: (data: { mapId: string; fogState: unknown }) => ipcRenderer.invoke('maps:saveFog', data),
     deleteFog: (mapId: string) => ipcRenderer.invoke('maps:deleteFog', mapId),
+    pushFogLive: (data: { mapId: string; fogState: unknown }) => ipcRenderer.invoke('maps:pushFogLive', data),
     // Session-only push (no DB)
     pushRuler: (data: unknown) => ipcRenderer.invoke('maps:pushRuler', data),
     pushSpotlight: (data: unknown) => ipcRenderer.invoke('maps:pushSpotlight', data),

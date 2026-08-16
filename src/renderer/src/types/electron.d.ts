@@ -44,6 +44,7 @@ interface ElectronAPI {
     getFog: (mapId: string) => Promise<unknown>
     saveFog: (data: { mapId: string; fogState: unknown }) => Promise<void>
     deleteFog: (mapId: string) => Promise<void>
+    pushFogLive: (data: { mapId: string; fogState: unknown }) => Promise<void>
     pushRuler: (data: unknown) => Promise<void>
     pushSpotlight: (data: unknown) => Promise<void>
     pushGrid: (data: unknown) => Promise<void>

@@ -25,9 +25,12 @@ function toScreen(pt: Pt, imgRect: ImgRect, pan: { x: number; y: number }, scale
   }
 }
 
-function calcDistance(start: Pt, end: Pt, mapData: MapData, natW: number) {
+function calcDistance(start: Pt, end: Pt, mapData: MapData, natW: number, natH: number) {
+  // start/end are normalized fractions of image width/height respectively —
+  // convert each axis back to natural image pixels using its own dimension,
+  // otherwise non-square maps get a skewed distance reading.
   const dx = (end.x - start.x) * natW
-  const dy = (end.y - start.y) * natW  // use natW for both to keep aspect ratio correct
+  const dy = (end.y - start.y) * natH
   const pixelDist = Math.sqrt(dx * dx + dy * dy)
   if (mapData.scale_pixels_per_unit <= 0) return null
   const units = pixelDist / mapData.scale_pixels_per_unit
@@ -42,7 +45,7 @@ export function RulerOverlay({ start, end, liveEnd, imgRect, pan, scale, mapData
   const a = toScreen(start,     imgRect, pan, scale)
   const b = toScreen(activeEnd, imgRect, pan, scale)
 
-  const dist = calcDistance(start, activeEnd, mapData, natW)
+  const dist = calcDistance(start, activeEnd, mapData, natW, natH)
   const label = dist
     ? `${dist.feet.toFixed(1)} ft  (${dist.units.toFixed(1)} sq)`
     : `${Math.round(Math.hypot((activeEnd.x - start.x) * imgRect.width * scale, (activeEnd.y - start.y) * imgRect.height * scale))}px`

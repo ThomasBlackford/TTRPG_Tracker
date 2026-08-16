@@ -62,6 +62,14 @@ export function MapPage() {
 
   useEffect(() => { loadMaps() }, [])
 
+  // Track handout state from the actual push channel — not just this page's
+  // own "Push to TV" button — since a handout can also be triggered from a
+  // card in the Library. This is what drives the "Clear Handout" control.
+  useEffect(() => {
+    const cleanup = window.api.maps.onHandoutUpdate((data) => setHandoutActive(!!data))
+    return cleanup
+  }, [])
+
   useEffect(() => {
     if (currentMapId) {
       loadPins(currentMapId)
@@ -107,14 +115,29 @@ export function MapPage() {
     if (activeTool === 'fog') { setActiveTool(null); return }
     setActiveTool('fog')
     if (!fog && currentMapId) {
-      // First time enabling fog for this map — start fully fogged
+      // First time enabling fog for this map — start fully fogged.
+      // If we're already presenting, persist + push immediately so the
+      // player screen goes dark right away instead of staying fully
+      // visible until the first brush stroke ends.
       const initial = initFog()
-      setFog(initial)
+      if (presenting) handleFogSave(initial)
+      else setFog(initial)
     }
   }
 
+  const lastLiveFogPushRef = useRef(0)
+
   function handleFogChange(newFog: FogState) {
     setFog(newFog)
+    // Live-broadcast to the player screen while actively dragging the
+    // brush, throttled so we're not flooding IPC on every pointermove.
+    if (presenting && currentMapId) {
+      const now = Date.now()
+      if (now - lastLiveFogPushRef.current >= 80) {
+        lastLiveFogPushRef.current = now
+        window.api.maps.pushFogLive({ mapId: currentMapId, fogState: newFog })
+      }
+    }
   }
 
   const fogSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
