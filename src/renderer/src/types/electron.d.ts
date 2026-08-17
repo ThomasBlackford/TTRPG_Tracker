@@ -48,8 +48,12 @@ interface ElectronAPI {
     pushRuler: (data: unknown) => Promise<void>
     pushSpotlight: (data: unknown) => Promise<void>
     pushGrid: (data: unknown) => Promise<void>
+    pushEffect: (data: { id: string; type: string; x?: number; y?: number }) => Promise<void>
+    pushAmbientVfx: (data: { rain: boolean; stormLightning: boolean }) => Promise<void>
     openPresentation: (mapId: string) => Promise<void>
     closePresentation: () => Promise<void>
+    toggleFullscreen: () => Promise<void>
+    setFullscreen: (value: boolean) => Promise<void>
     pushHandout: (imagePath: string) => Promise<void>
     clearHandout: () => Promise<void>
     setScene: (data: SceneData) => Promise<void>
@@ -59,6 +63,8 @@ interface ElectronAPI {
     onRulerUpdate: (cb: (data: unknown) => void) => () => void
     onSpotlightUpdate: (cb: (data: unknown) => void) => () => void
     onGridUpdate: (cb: (data: unknown) => void) => () => void
+    onEffectUpdate: (cb: (data: { id: string; type: string; x?: number; y?: number }) => void) => () => void
+    onAmbientVfxUpdate: (cb: (data: { rain: boolean; stormLightning: boolean }) => void) => () => void
     onHandoutUpdate: (cb: (data: { imagePath: string } | null) => void) => () => void
     onSceneUpdate: (cb: (data: SceneData | null) => void) => () => void
   }

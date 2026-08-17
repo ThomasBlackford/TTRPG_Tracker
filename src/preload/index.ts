@@ -53,9 +53,15 @@ const api = {
     pushRuler: (data: unknown) => ipcRenderer.invoke('maps:pushRuler', data),
     pushSpotlight: (data: unknown) => ipcRenderer.invoke('maps:pushSpotlight', data),
     pushGrid: (data: unknown) => ipcRenderer.invoke('maps:pushGrid', data),
+    pushEffect: (data: { id: string; type: string; x?: number; y?: number }) =>
+      ipcRenderer.invoke('maps:pushEffect', data),
+    pushAmbientVfx: (data: { rain: boolean; stormLightning: boolean }) =>
+      ipcRenderer.invoke('maps:pushAmbientVfx', data),
     // Presentation window
     openPresentation: (mapId: string) => ipcRenderer.invoke('maps:openPresentation', mapId),
     closePresentation: () => ipcRenderer.invoke('maps:closePresentation'),
+    toggleFullscreen: () => ipcRenderer.invoke('maps:toggleFullscreen'),
+    setFullscreen: (value: boolean) => ipcRenderer.invoke('maps:setFullscreen', value),
     // Handout
     pushHandout: (imagePath: string) => ipcRenderer.invoke('maps:pushHandout', imagePath),
     clearHandout: () => ipcRenderer.invoke('maps:clearHandout'),
@@ -87,6 +93,16 @@ const api = {
       const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
       ipcRenderer.on('maps:gridUpdate', handler)
       return () => ipcRenderer.removeListener('maps:gridUpdate', handler)
+    },
+    onEffectUpdate: (cb: (data: { id: string; type: string; x?: number; y?: number }) => void) => {
+      const handler = (_e: IpcRendererEvent, data: { id: string; type: string; x?: number; y?: number }) => cb(data)
+      ipcRenderer.on('maps:effectUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:effectUpdate', handler)
+    },
+    onAmbientVfxUpdate: (cb: (data: { rain: boolean; stormLightning: boolean }) => void) => {
+      const handler = (_e: IpcRendererEvent, data: { rain: boolean; stormLightning: boolean }) => cb(data)
+      ipcRenderer.on('maps:ambientVfxUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:ambientVfxUpdate', handler)
     },
     onHandoutUpdate: (cb: (data: { imagePath: string } | null) => void) => {
       const handler = (_e: IpcRendererEvent, data: { imagePath: string } | null) => cb(data)

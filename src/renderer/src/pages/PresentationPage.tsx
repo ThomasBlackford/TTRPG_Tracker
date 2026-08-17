@@ -1,10 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import type { MapData, FogState, SpotlightState, EncounterState, SceneData, Combatant } from '../types'
+import type { MapData, FogState, SpotlightState, EncounterState, SceneData, Combatant, VfxEvent, AmbientVfxState } from '../types'
+import { DEFAULT_AMBIENT_VFX } from '../types'
 import { FogCanvas } from '../components/maps/FogCanvas'
 import { FogSvgFilter } from '../components/maps/FogSvgFilter'
 import { GridOverlay } from '../components/maps/GridOverlay'
 import { RulerOverlay } from '../components/maps/RulerOverlay'
 import { SpotlightOverlay } from '../components/maps/SpotlightOverlay'
+import { VfxOverlay, VFX_DURATIONS } from '../components/maps/VfxOverlay'
+import { RainLoop, StormLoop } from '../components/maps/AmbientVfxOverlay'
 import { ConditionBadge } from '../components/encounter/ConditionBadge'
 
 interface Props {
@@ -37,6 +40,8 @@ export function PresentationPage({ initialMapId }: Props) {
   const [encounter, setEncounter] = useState<EncounterState | null>(null)
   const [handout, setHandout] = useState<{ imagePath: string } | null>(null)
   const [scene, setScene] = useState<SceneData | null>(null)
+  const [effects, setEffects] = useState<VfxEvent[]>([])
+  const [ambientVfx, setAmbientVfx] = useState<AmbientVfxState>(DEFAULT_AMBIENT_VFX)
 
   useEffect(() => { panRef.current = pan }, [pan])
   useEffect(() => { scaleRef.current = scale }, [scale])
@@ -85,6 +90,21 @@ export function PresentationPage({ initialMapId }: Props) {
     }
   }
 
+  // F toggles fullscreen on this window (e.g. the TV/projector display),
+  // Escape drops out of it — a manual override for the auto-fullscreen
+  // that happens when a second display is detected on Present.
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'f' || e.key === 'F') {
+        window.api.maps.toggleFullscreen()
+      } else if (e.key === 'Escape') {
+        window.api.maps.setFullscreen(false)
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   useEffect(() => {
     loadMap(initialMapId)
     const c1 = window.api.maps.onPresentUpdate((id: string) => loadMap(id))
@@ -96,7 +116,15 @@ export function PresentationPage({ initialMapId }: Props) {
     const c6 = window.api.encounter.onUpdate((s: unknown) => setEncounter(s as EncounterState | null))
     const c7 = window.api.maps.onHandoutUpdate((d) => setHandout(d))
     const c8 = window.api.maps.onSceneUpdate((d: unknown) => setScene(d as SceneData | null))
-    return () => { c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8() }
+    const c9 = window.api.maps.onEffectUpdate((d) => {
+      const evt = d as VfxEvent
+      setEffects((prev) => [...prev, evt])
+      setTimeout(() => {
+        setEffects((prev) => prev.filter((e) => e.id !== evt.id))
+      }, VFX_DURATIONS[evt.type])
+    })
+    const c10 = window.api.maps.onAmbientVfxUpdate((d) => setAmbientVfx(d as AmbientVfxState))
+    return () => { c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8(); c9(); c10() }
   }, [])
 
   // Non-passive wheel for zoom centered on cursor
@@ -245,6 +273,13 @@ export function PresentationPage({ initialMapId }: Props) {
           scale={scale}
         />
       )}
+
+      {ambientVfx.rain && <RainLoop />}
+      {ambientVfx.stormLightning && <StormLoop />}
+
+      {effects.map((effect) => (
+        <VfxOverlay key={effect.id} effect={effect} imgRect={imgRect} pan={pan} scale={scale} />
+      ))}
 
       {map && (
         <span className="absolute bottom-4 right-4 text-white/20 text-xs pointer-events-none">

@@ -28,6 +28,8 @@ interface Props {
   onSpotlightSet: (pos: SpotlightState | null) => void
   // Grid
   gridVisible: boolean
+  // VFX
+  onPlaceEffect?: (x: number, y: number) => void
   // Existing
   selectedPinId: string | null
   onAddPin: (x: number, y: number) => void
@@ -55,6 +57,7 @@ export function MapCanvas({
   rulerState, onRulerChange,
   spotlightPos, onSpotlightSet,
   gridVisible,
+  onPlaceEffect,
   selectedPinId, onAddPin, onClickPin, onDragPin, onSelectPin, onUploadImage,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -259,6 +262,9 @@ export function MapCanvas({
     if (activeTool === 'pin') {
       const { x, y } = toImageCoords(e.clientX, e.clientY)
       if (x > 0 && x < 1 && y > 0 && y < 1) onAddPin(x, y)
+    } else if (activeTool === 'vfx') {
+      const { x, y } = toImageCoords(e.clientX, e.clientY)
+      if (x > 0 && x < 1 && y > 0 && y < 1) onPlaceEffect?.(x, y)
     } else if (!activeTool) {
       onSelectPin(null)
     }
@@ -306,7 +312,7 @@ export function MapCanvas({
 
   const cursor = (() => {
     if (activeTool === 'fog' || activeTool === 'ruler' || activeTool === 'spotlight') return 'crosshair'
-    if (activeTool === 'pin') return 'crosshair'
+    if (activeTool === 'pin' || activeTool === 'vfx') return 'crosshair'
     if (panning?.moved) return 'grabbing'
     return 'grab'
   })()
@@ -439,6 +445,11 @@ export function MapCanvas({
       {activeTool === 'spotlight' && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-yellow-500/20 border border-yellow-500/40 rounded-full text-yellow-300 text-xs pointer-events-none">
           {spotlightPos ? 'Click to remove spotlight' : 'Click to place spotlight for players'}
+        </div>
+      )}
+      {activeTool === 'vfx' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/40 rounded-full text-fuchsia-300 text-xs pointer-events-none">
+          Click on the map to fire the effect
         </div>
       )}
     </div>

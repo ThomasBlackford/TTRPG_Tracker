@@ -1,4 +1,4 @@
-import { ipcMain, app, BrowserWindow } from 'electron'
+import { ipcMain, app, BrowserWindow, screen } from 'electron'
 import { is } from '@electron-toolkit/utils'
 import { getDb } from '../db'
 import { v4 as uuidv4 } from 'uuid'
@@ -173,6 +173,14 @@ export function registerMapHandlers(): void {
     pushToPlayer('maps:gridUpdate', data)
   })
 
+  ipcMain.handle('maps:pushEffect', (_e, data: { id: string; type: string; x?: number; y?: number }) => {
+    pushToPlayer('maps:effectUpdate', data)
+  })
+
+  ipcMain.handle('maps:pushAmbientVfx', (_e, data: { rain: boolean; stormLightning: boolean }) => {
+    pushToPlayer('maps:ambientVfxUpdate', data)
+  })
+
   // --- Presentation window ---
 
   ipcMain.handle('maps:openPresentation', (_e, mapId: string) => {
@@ -182,17 +190,33 @@ export function registerMapHandlers(): void {
       return
     }
 
+    // If a second display is connected (the TV/projector), open the
+    // presentation window there and go fullscreen automatically. On a
+    // single-monitor setup, fall back to a plain windowed view instead of
+    // fullscreening over the DM's own screen.
+    const displays = screen.getAllDisplays()
+    const primary = screen.getPrimaryDisplay()
+    const targetDisplay = displays.find((d) => d.id !== primary.id)
+
     presentationWin = new BrowserWindow({
-      width: 1280,
-      height: 720,
+      x: targetDisplay?.bounds.x,
+      y: targetDisplay?.bounds.y,
+      width: targetDisplay?.bounds.width ?? 1280,
+      height: targetDisplay?.bounds.height ?? 720,
       title: 'Map — Player View',
       backgroundColor: '#000000',
       autoHideMenuBar: true,
+      show: false,
       webPreferences: {
         preload: join(__dirname, '../preload/index.js'),
         sandbox: false,
         webSecurity: false
       }
+    })
+
+    presentationWin.once('ready-to-show', () => {
+      presentationWin?.show()
+      if (targetDisplay) presentationWin?.setFullScreen(true)
     })
 
     if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -210,6 +234,18 @@ export function registerMapHandlers(): void {
 
   ipcMain.handle('maps:closePresentation', () => {
     if (presentationWin && !presentationWin.isDestroyed()) presentationWin.close()
+  })
+
+  ipcMain.handle('maps:toggleFullscreen', () => {
+    if (presentationWin && !presentationWin.isDestroyed()) {
+      presentationWin.setFullScreen(!presentationWin.isFullScreen())
+    }
+  })
+
+  ipcMain.handle('maps:setFullscreen', (_e, value: boolean) => {
+    if (presentationWin && !presentationWin.isDestroyed()) {
+      presentationWin.setFullScreen(value)
+    }
   })
 
   ipcMain.handle('maps:pushHandout', (_e, imagePath: string) => {

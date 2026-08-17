@@ -2,14 +2,16 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Pin, ChevronRight, ImagePlus, Pencil, Check, X as XIcon,
   MonitorPlay, MonitorOff, Cloud, Ruler, Crosshair, Grid,
-  Settings, Image, Tv2
+  Settings, Image, Tv2, Sparkles
 } from 'lucide-react'
-import type { MapData, MapPin, Card, FogState, MapTool, RulerState, SpotlightState, SceneData } from '../types'
+import type { MapData, MapPin, Card, FogState, MapTool, RulerState, SpotlightState, SceneData, VfxType, AmbientVfxState } from '../types'
+import { VFX_POINT_TYPES, DEFAULT_AMBIENT_VFX } from '../types'
 import { MapListPanel } from '../components/maps/MapListPanel'
 import { MapCanvas } from '../components/maps/MapCanvas'
 import { PinEditor } from '../components/maps/PinEditor'
 import { CardDetail } from '../components/cards/CardDetail'
 import { FogControls } from '../components/maps/FogControls'
+import { VfxControls } from '../components/maps/VfxControls'
 import { ScaleConfigModal } from '../components/maps/ScaleConfigModal'
 
 const DEFAULT_RULER: RulerState = { start: null, end: null, frozen: false, shareToPlayers: false }
@@ -45,6 +47,11 @@ export function MapPage() {
 
   // Grid
   const [gridVisible, setGridVisible] = useState(false)
+
+  // VFX
+  const [pendingVfxType, setPendingVfxType] = useState<VfxType | null>(null)
+  useEffect(() => { if (activeTool !== 'vfx') setPendingVfxType(null) }, [activeTool])
+  const [ambientVfx, setAmbientVfx] = useState<AmbientVfxState>(DEFAULT_AMBIENT_VFX)
 
   // Scale modal
   const [scaleModalOpen, setScaleModalOpen] = useState(false)
@@ -211,6 +218,31 @@ export function MapPage() {
     if (presenting) window.api.maps.pushGrid({ visible: next })
   }
 
+  // ── VFX ──────────────────────────────────────────────────────────────────
+
+  function handleVfxPick(type: VfxType) {
+    if (VFX_POINT_TYPES.includes(type)) {
+      // Arm placement mode — the next map click fires it at that point.
+      setPendingVfxType(type)
+    } else {
+      // Screen-wide effect — fires immediately, no target needed.
+      window.api.maps.pushEffect({ id: crypto.randomUUID(), type })
+    }
+  }
+
+  function handlePlaceEffect(x: number, y: number) {
+    if (!pendingVfxType) return
+    window.api.maps.pushEffect({ id: crypto.randomUUID(), type: pendingVfxType, x, y })
+    setPendingVfxType(null)
+    setActiveTool(null)
+  }
+
+  function handleToggleAmbient(key: keyof AmbientVfxState) {
+    const next = { ...ambientVfx, [key]: !ambientVfx[key] }
+    setAmbientVfx(next)
+    if (presenting) window.api.maps.pushAmbientVfx(next)
+  }
+
   // ── Presentation ─────────────────────────────────────────────────────────
 
   async function handlePresent() {
@@ -225,6 +257,8 @@ export function MapPage() {
       if (fog) await window.api.maps.saveFog({ mapId: currentMapId, fogState: fog })
       // Push grid
       window.api.maps.pushGrid({ visible: gridVisible })
+      // Re-sync any ambient loops (rain/storm) already toggled on
+      if (ambientVfx.rain || ambientVfx.stormLightning) window.api.maps.pushAmbientVfx(ambientVfx)
     }
   }
 
@@ -583,10 +617,12 @@ export function MapPage() {
               </button>
             )}
             {currentMap && toolBtn('spotlight', <Crosshair size={13} />, 'Spotlight', 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300')}
+            {currentMap && toolBtn('vfx', <Sparkles size={13} />, 'Effects', 'bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300')}
             {currentMap && toolBtn('pin', <Pin size={13} />, 'Add Pin', 'bg-amber-500/20 border-amber-500/40 text-amber-300')}
             {currentMap && (
               <button
                 onClick={handlePresent}
+                title={presenting ? undefined : 'Opens fullscreen on a second display if one is connected. Press F on the TV window to toggle fullscreen, Esc to exit it.'}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
                   presenting
                     ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
@@ -612,6 +648,16 @@ export function MapPage() {
           />
         )}
 
+        {/* VFX sub-toolbar */}
+        {activeTool === 'vfx' && (
+          <VfxControls
+            pendingType={pendingVfxType}
+            onPick={handleVfxPick}
+            ambientVfx={ambientVfx}
+            onToggleAmbient={handleToggleAmbient}
+          />
+        )}
+
         {/* Map area */}
         <div className="flex-1 flex overflow-hidden bg-surface-base">
           {currentMap ? (
@@ -629,6 +675,7 @@ export function MapPage() {
               spotlightPos={spotlightPos}
               onSpotlightSet={handleSpotlightSet}
               gridVisible={gridVisible}
+              onPlaceEffect={handlePlaceEffect}
               selectedPinId={selectedPinId}
               onAddPin={handleAddPin}
               onClickPin={handleClickPin}

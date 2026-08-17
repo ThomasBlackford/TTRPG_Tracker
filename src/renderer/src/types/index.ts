@@ -115,7 +115,27 @@ export interface SpotlightState {
   y: number
 }
 
-export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | null
+export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | 'vfx' | null
+
+// Point effects need a target (x, y); screen effects (lightning, impact)
+// play across the whole presentation window and ignore x/y.
+export type VfxType = 'lightning' | 'fireball' | 'frost' | 'poison' | 'heal' | 'impact'
+export const VFX_POINT_TYPES: VfxType[] = ['fireball', 'frost', 'poison', 'heal']
+
+export interface VfxEvent {
+  id: string
+  type: VfxType
+  x?: number   // normalized 0-1, point effects only
+  y?: number
+}
+
+// Looping ambient layers — toggled on/off rather than fired once.
+export interface AmbientVfxState {
+  rain: boolean
+  stormLightning: boolean
+}
+
+export const DEFAULT_AMBIENT_VFX: AmbientVfxState = { rain: false, stormLightning: false }
 
 export type Page = 'library' | 'party' | 'sessions' | 'maps' | 'encounter' | 'timeline'
 

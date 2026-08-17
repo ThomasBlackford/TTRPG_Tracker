@@ -43,14 +43,115 @@
   100% { transform: translate(0px,  0px); }
 }
 
+/* Slower, wider-swinging drift for the back parallax fog layer — kept at
+   a constant slight upscale so it reads as sitting further behind the
+   front layer rather than as an exact duplicate of it. */
+@keyframes fog-drift-slow {
+  0%   { transform: scale(1.06) translate(0px,   0px); }
+  25%  { transform: scale(1.06) translate(10px,  6px); }
+  50%  { transform: scale(1.06) translate(-8px, -4px); }
+  75%  { transform: scale(1.06) translate(6px,  -8px); }
+  100% { transform: scale(1.06) translate(0px,   0px); }
+}
+
 @keyframes spotlight-pulse {
   0%, 100% { opacity: 0.9; transform: translate(-50%, -50%) scale(1); }
   50%       { opacity: 0.5; transform: translate(-50%, -50%) scale(1.08); }
 }
 
+/* ── VFX ─────────────────────────────────────────────────────────────── */
+
+@keyframes vfx-shake {
+  0%   { transform: translate(0, 0); }
+  10%  { transform: translate(-6px, 4px); }
+  20%  { transform: translate(5px, -5px); }
+  30%  { transform: translate(-4px, 3px); }
+  40%  { transform: translate(6px, 2px); }
+  50%  { transform: translate(-3px, -4px); }
+  60%  { transform: translate(4px, 3px); }
+  70%  { transform: translate(-2px, -2px); }
+  80%  { transform: translate(2px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+.vfx-shake-root { animation: vfx-shake 500ms ease-out; }
+
+@keyframes vfx-lightning-flash {
+  0%   { opacity: 0; }
+  4%   { opacity: 0.95; }
+  8%   { opacity: 0.15; }
+  14%  { opacity: 0.85; }
+  20%  { opacity: 0.1; }
+  30%  { opacity: 0.55; }
+  45%  { opacity: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes vfx-bolt-fade {
+  0%   { opacity: 0; }
+  6%   { opacity: 1; }
+  12%  { opacity: 0.3; }
+  18%  { opacity: 1; }
+  40%  { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+@keyframes vfx-screen-flash {
+  0%   { opacity: 0; }
+  15%  { opacity: 0.35; }
+  100% { opacity: 0; }
+}
+
+@keyframes vfx-fireball-core {
+  0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 1; }
+  60%  { transform: translate(-50%, -50%) scale(1.4); opacity: 0.85; }
+  100% { transform: translate(-50%, -50%) scale(1.8); opacity: 0; }
+}
+
+@keyframes vfx-fireball-ring {
+  0%   { transform: translate(-50%, -50%) scale(0.1); opacity: 0.9; }
+  100% { transform: translate(-50%, -50%) scale(3.2); opacity: 0; }
+}
+
+@keyframes vfx-frost-core {
+  0%   { transform: translate(-50%, -50%) scale(0.15); opacity: 0.95; }
+  50%  { transform: translate(-50%, -50%) scale(1.1);  opacity: 0.8; }
+  100% { transform: translate(-50%, -50%) scale(1.6);  opacity: 0; }
+}
+
+@keyframes vfx-frost-crack {
+  0%   { opacity: 0; stroke-dashoffset: 70; }
+  20%  { opacity: 1; }
+  70%  { opacity: 0.9; stroke-dashoffset: 0; }
+  100% { opacity: 0; }
+}
+
+@keyframes vfx-poison-bloom {
+  0%   { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  15%  { opacity: 0.85; }
+  70%  { transform: translate(-50%, -50%) scale(1.6); opacity: 0.7; }
+  100% { transform: translate(-50%, -50%) scale(2.0); opacity: 0; }
+}
+
+@keyframes vfx-heal-particle {
+  0%   { transform: translate(-50%, -50%) translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(var(--dx), var(--dy)) scale(0.3); opacity: 0; }
+}
+
+@keyframes vfx-impact-vignette {
+  0%   { opacity: 0; }
+  20%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
 .fog-layer-animated {
   animation: fog-drift 14s ease-in-out infinite;
   filter: url(#fog-filter);
+}
+
+.fog-layer-back {
+  animation: fog-drift-slow 26s ease-in-out infinite;
+  filter: url(#fog-filter-back);
 }
 
 @layer components {
