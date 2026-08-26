@@ -10,10 +10,54 @@ interface MemberRow {
   initiative: number | null
   sort_order: number
   resources: string
+  client_id: string | null
 }
 
 function rowToMember(row: MemberRow) {
   return { ...row, resources: JSON.parse(row.resources) }
+}
+
+// The party roster is no longer built by hand — a connecting player's synced
+// name/initiative is what creates (or updates) their entry. Called whenever
+// the sync server processes a snapshot from a client_id it's seen before or
+// not. Returns the party_member id so the caller can also bridge live HP
+// into an active encounter combatant, if there is one.
+export function linkOrCreatePartyMember(
+  clientId: string,
+  name: string,
+  initiative: number | null
+): string {
+  const db = getDb()
+  const trimmedName = name.trim() || 'Unnamed Adventurer'
+
+  const existing = db.prepare('SELECT id FROM party_members WHERE client_id = ?').get(clientId) as
+    | { id: string }
+    | undefined
+  if (existing) {
+    db.prepare('UPDATE party_members SET name=?, initiative=? WHERE id=?').run(trimmedName, initiative, existing.id)
+    return existing.id
+  }
+
+  // If a member with this exact name already exists but was never linked to
+  // a synced player (e.g. added by hand before this feature existed), claim
+  // it instead of creating a duplicate roster entry.
+  const unlinkedMatch = db
+    .prepare('SELECT id FROM party_members WHERE client_id IS NULL AND name = ? COLLATE NOCASE')
+    .get(trimmedName) as { id: string } | undefined
+  if (unlinkedMatch) {
+    db.prepare('UPDATE party_members SET client_id=?, initiative=? WHERE id=?').run(
+      clientId, initiative, unlinkedMatch.id
+    )
+    return unlinkedMatch.id
+  }
+
+  const id = uuidv4()
+  const count = (db.prepare('SELECT COUNT(*) as c FROM party_members').get() as { c: number }).c
+  db.prepare(
+    `INSERT INTO party_members (id, name, player_name, avatar_path, initiative, sort_order, resources, client_id)
+     VALUES (?,?,?,?,?,?,?,?)`
+  ).run(id, trimmedName, '', null, initiative, count, '[]', clientId)
+  return id
 }
 
 export function registerPartyHandlers(): void {
@@ -48,10 +92,6 @@ export function registerPartyHandlers(): void {
 
   ipcMain.handle('party:deleteMember', (_e, id: string) => {
     getDb().prepare('DELETE FROM party_members WHERE id = ?').run(id)
-  })
-
-  ipcMain.handle('party:updateInitiative', (_e, id: string, initiative: number | null) => {
-    getDb().prepare('UPDATE party_members SET initiative=? WHERE id=?').run(initiative, id)
   })
 
   ipcMain.handle('party:updateResources', (_e, id: string, resources: unknown[]) => {

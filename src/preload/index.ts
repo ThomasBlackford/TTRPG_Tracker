@@ -19,8 +19,6 @@ const api = {
     getMembers: () => ipcRenderer.invoke('party:getMembers'),
     saveMember: (member: Record<string, unknown>) => ipcRenderer.invoke('party:saveMember', member),
     deleteMember: (id: string) => ipcRenderer.invoke('party:deleteMember', id),
-    updateInitiative: (id: string, initiative: number | null) =>
-      ipcRenderer.invoke('party:updateInitiative', id, initiative),
     updateResources: (id: string, resources: unknown[]) =>
       ipcRenderer.invoke('party:updateResources', id, resources),
     getReputation: (memberId: string) => ipcRenderer.invoke('party:getReputation', memberId),

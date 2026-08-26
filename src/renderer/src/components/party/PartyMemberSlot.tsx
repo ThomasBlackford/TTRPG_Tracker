@@ -23,13 +23,6 @@ export function PartyMemberSlot({
     onUpdate({ ...member, resources })
   }
 
-  async function handleInitiativeChange(val: string) {
-    const num = val === '' ? null : parseInt(val)
-    const initiative = isNaN(num as number) ? null : num
-    await window.api.party.updateInitiative(member.id, initiative)
-    onUpdate({ ...member, initiative })
-  }
-
   return (
     <div className="bg-surface-raised border border-border rounded-xl overflow-hidden">
       {/* Header — clicking avatar/name area opens detail modal */}
@@ -62,17 +55,11 @@ export function PartyMemberSlot({
         </button>
 
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" title="Set from the player's own app">
             <span className="text-xs text-slate-500">Init</span>
-            <input
-              type="number"
-              value={member.initiative ?? ''}
-              onChange={(e) => handleInitiativeChange(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-              placeholder="—"
-              className="w-12 text-center bg-surface-overlay border border-border rounded text-xs text-slate-200
-                         focus:outline-none focus:border-amber-500/60 py-1"
-            />
+            <span className="w-8 text-center text-xs text-slate-300 py-1">
+              {member.initiative ?? '—'}
+            </span>
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onEdit() }}

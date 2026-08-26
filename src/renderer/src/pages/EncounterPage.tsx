@@ -18,6 +18,12 @@ export function EncounterPage() {
     window.api.party.getMembers().then(setPartyMembers)
   }, [])
 
+  // Picks up updates that originate elsewhere — e.g. a party member's HP
+  // changing because their own Companion app synced a new value.
+  useEffect(() => {
+    return window.api.encounter.onUpdate((s) => setState(s as EncounterState))
+  }, [])
+
   async function handleStart() {
     const s = await window.api.encounter.start()
     setState(s)

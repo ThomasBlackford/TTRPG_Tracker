@@ -30,6 +30,10 @@ function ConnectedPlayerRow({ player }: { player: ConnectedPlayer }) {
         <span className="flex-shrink-0 text-slate-400">AC {snapshot.ac}</span>
       )}
 
+      {snapshot.initiative != null && (
+        <span className="flex-shrink-0 text-slate-400">Init {snapshot.initiative}</span>
+      )}
+
       {activeSlots.length > 0 && (
         <div className="flex-shrink-0 flex items-center gap-1.5 text-slate-500">
           {activeSlots.map((s) => (

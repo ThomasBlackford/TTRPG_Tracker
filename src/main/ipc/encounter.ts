@@ -2,6 +2,8 @@ import { ipcMain } from 'electron'
 import { getDb } from '../db'
 import { v4 as uuidv4 } from 'uuid'
 import { getPresentationWin } from './maps'
+import { getMainWin } from '../mainWindow'
+import { getPlayers } from '../server'
 
 interface CombatantRow {
   id: string
@@ -26,6 +28,7 @@ interface StateRow {
 interface PartyMemberRow {
   id: string
   name: string
+  client_id: string | null
   initiative: number | null
   sort_order: number
 }
@@ -55,18 +58,62 @@ function buildState(db: ReturnType<typeof getDb>) {
   }
 }
 
-function pushEncounterToPresentation(db: ReturnType<typeof getDb>) {
-  const win = getPresentationWin()
-  if (!win || win.isDestroyed()) return
+// Pushes to both the TV (with monster HP stripped) and the DM's own window.
+// The DM's own window normally gets fresh state back directly from whatever
+// IPC call it just made — this push is what covers updates that originate
+// elsewhere, like a party member's HP changing because their own Companion
+// app synced a new value while an encounter is active.
+function broadcastEncounterUpdate(db: ReturnType<typeof getDb>) {
   const state = buildState(db)
-  // Strip HP from monsters for the TV display
-  const safeState = {
-    ...state,
-    combatants: state.combatants.map((c) =>
-      c.type === 'monster' ? { ...c, hp_current: null, hp_max: null } : c
-    ),
+
+  const presentationWin = getPresentationWin()
+  if (presentationWin && !presentationWin.isDestroyed()) {
+    const safeState = {
+      ...state,
+      combatants: state.combatants.map((c) =>
+        c.type === 'monster' ? { ...c, hp_current: null, hp_max: null } : c
+      ),
+    }
+    presentationWin.webContents.send('encounter:update', safeState)
   }
-  win.webContents.send('encounter:update', safeState)
+
+  const mainWin = getMainWin()
+  if (mainWin && !mainWin.isDestroyed()) {
+    mainWin.webContents.send('encounter:update', state)
+  }
+}
+
+// Called when a connected player's HP changes — if they're currently in an
+// active encounter, their combatant HP follows live instead of the DM
+// re-typing it. A no-op if they aren't in the current fight.
+export function syncPartyCombatantHp(
+  partyMemberId: string,
+  hpCurrent: number | null,
+  hpMax: number | null
+): void {
+  const db = getDb()
+  const combatant = db
+    .prepare("SELECT id FROM encounter_combatants WHERE party_member_id = ? AND type = 'party'")
+    .get(partyMemberId) as { id: string } | undefined
+  if (!combatant) return
+
+  db.prepare('UPDATE encounter_combatants SET hp_current=?, hp_max=? WHERE id=?').run(
+    hpCurrent, hpMax, combatant.id
+  )
+  broadcastEncounterUpdate(db)
+}
+
+// A party member's HP lives entirely in the sync snapshot, not in
+// party_members — so adding someone to an encounter (or starting one) needs
+// to pull whatever the server already has for them right now. Without this,
+// anyone who synced a while ago and hasn't touched their sheet since would
+// show up with blank HP until their next unrelated update.
+function getLiveHp(clientId: string | null): { hp_current: number | null; hp_max: number | null } {
+  if (!clientId) return { hp_current: null, hp_max: null }
+  const live = getPlayers().find((p) => p.clientId === clientId)
+  return live
+    ? { hp_current: live.snapshot.hp_current, hp_max: live.snapshot.hp_max }
+    : { hp_current: null, hp_max: null }
 }
 
 export function registerEncounterHandlers(): void {
@@ -81,17 +128,18 @@ export function registerEncounterHandlers(): void {
     ).run()
 
     const members = db
-      .prepare('SELECT id, name, initiative, sort_order FROM party_members ORDER BY sort_order')
+      .prepare('SELECT id, name, client_id, initiative, sort_order FROM party_members ORDER BY sort_order')
       .all() as PartyMemberRow[]
 
     members.forEach((m, i) => {
+      const { hp_current, hp_max } = getLiveHp(m.client_id)
       db.prepare(
-        'INSERT INTO encounter_combatants (id, name, type, party_member_id, initiative, sort_order, conditions) VALUES (?,?,?,?,?,?,?)'
-      ).run(uuidv4(), m.name, 'party', m.id, m.initiative ?? null, i, '[]')
+        'INSERT INTO encounter_combatants (id, name, type, party_member_id, hp_current, hp_max, initiative, sort_order, conditions) VALUES (?,?,?,?,?,?,?,?,?)'
+      ).run(uuidv4(), m.name, 'party', m.id, hp_current, hp_max, m.initiative ?? null, i, '[]')
     })
 
     const state = buildState(db)
-    pushEncounterToPresentation(db)
+    broadcastEncounterUpdate(db)
     return state
   })
 
@@ -101,15 +149,15 @@ export function registerEncounterHandlers(): void {
     db.prepare(
       'UPDATE encounter_state SET is_active=0, round=1, current_index=0 WHERE id=1'
     ).run()
-    const win = getPresentationWin()
-    if (win && !win.isDestroyed()) win.webContents.send('encounter:update', null)
-    return buildState(db)
+    const state = buildState(db)
+    broadcastEncounterUpdate(db)
+    return state
   })
 
   ipcMain.handle('encounter:addPartyMember', (_e, memberId: string) => {
     const db = getDb()
     const member = db
-      .prepare('SELECT id, name, initiative FROM party_members WHERE id=?')
+      .prepare('SELECT id, name, client_id, initiative FROM party_members WHERE id=?')
       .get(memberId) as PartyMemberRow | undefined
     if (!member) return buildState(db)
 
@@ -121,12 +169,13 @@ export function registerEncounterHandlers(): void {
     const count = (
       db.prepare('SELECT COUNT(*) as c FROM encounter_combatants').get() as { c: number }
     ).c
+    const { hp_current, hp_max } = getLiveHp(member.client_id)
     db.prepare(
-      'INSERT INTO encounter_combatants (id, name, type, party_member_id, initiative, sort_order, conditions) VALUES (?,?,?,?,?,?,?)'
-    ).run(uuidv4(), member.name, 'party', member.id, member.initiative ?? null, count, '[]')
+      'INSERT INTO encounter_combatants (id, name, type, party_member_id, hp_current, hp_max, initiative, sort_order, conditions) VALUES (?,?,?,?,?,?,?,?,?)'
+    ).run(uuidv4(), member.name, 'party', member.id, hp_current, hp_max, member.initiative ?? null, count, '[]')
 
     const state = buildState(db)
-    pushEncounterToPresentation(db)
+    broadcastEncounterUpdate(db)
     return state
   })
 
@@ -151,7 +200,7 @@ export function registerEncounterHandlers(): void {
         '[]'
       )
       const state = buildState(db)
-      pushEncounterToPresentation(db)
+      broadcastEncounterUpdate(db)
       return state
     }
   )
@@ -190,7 +239,7 @@ export function registerEncounterHandlers(): void {
       ).run(name, hp, conditions, initiative, ac, id)
 
       const state = buildState(db)
-      pushEncounterToPresentation(db)
+      broadcastEncounterUpdate(db)
       return state
     }
   )
@@ -209,7 +258,7 @@ export function registerEncounterHandlers(): void {
     }
 
     const state = buildState(db)
-    pushEncounterToPresentation(db)
+    broadcastEncounterUpdate(db)
     return state
   })
 
@@ -235,7 +284,7 @@ export function registerEncounterHandlers(): void {
     )
 
     const state = buildState(db)
-    pushEncounterToPresentation(db)
+    broadcastEncounterUpdate(db)
     return state
   })
 
@@ -261,7 +310,7 @@ export function registerEncounterHandlers(): void {
     )
 
     const state = buildState(db)
-    pushEncounterToPresentation(db)
+    broadcastEncounterUpdate(db)
     return state
   })
 }

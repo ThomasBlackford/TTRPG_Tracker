@@ -9,6 +9,7 @@ export interface PlayerSnapshot {
   class: string
   level: number
   ac: number | null
+  initiative: number | null
   hp_current: number | null
   hp_max: number | null
   spellSlots: { level: number; max: number; current: number }[]
@@ -44,6 +45,7 @@ const players = new Map<string, ConnectedPlayer>() // clientId -> latest snapsho
 const dmThreads = new Map<string, DmThread>() // clientId -> conversation, persists across disconnects
 
 let listener: (() => void) | null = null
+let snapshotListener: ((clientId: string, snapshot: PlayerSnapshot) => void) | null = null
 
 function notify(): void {
   listener?.()
@@ -51,6 +53,13 @@ function notify(): void {
 
 export function onStateChange(cb: () => void): void {
   listener = cb
+}
+
+// Fired whenever a snapshot is processed — this is what drives the party
+// roster auto-populating from connecting players instead of the DM adding
+// members by hand. See ipc/partySync.ts.
+export function onSnapshot(cb: (clientId: string, snapshot: PlayerSnapshot) => void): void {
+  snapshotListener = cb
 }
 
 function getOrCreateThread(clientId: string, playerName: string): DmThread {
@@ -89,7 +98,9 @@ export function startServer(): { ok: boolean; error?: string } {
       liveConnections.set(clientId, ws)
 
       if (msg.type === 'snapshot' && msg.data) {
-        players.set(clientId, { clientId, snapshot: msg.data as PlayerSnapshot, lastSeen: Date.now() })
+        const snapshot = msg.data as PlayerSnapshot
+        players.set(clientId, { clientId, snapshot, lastSeen: Date.now() })
+        snapshotListener?.(clientId, snapshot)
         notify()
       } else if (msg.type === 'dm_message' && typeof msg.text === 'string') {
         const playerName = players.get(clientId)?.snapshot.name ?? 'Unknown player'

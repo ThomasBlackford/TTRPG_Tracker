@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Swords } from 'lucide-react'
+import { Swords } from 'lucide-react'
 import type { PartyMember } from '../types'
 import { useUIStore } from '../store/uiStore'
 import { PartyMemberSlot } from '../components/party/PartyMemberSlot'
@@ -16,6 +16,13 @@ export function PartyPage() {
 
   useEffect(() => {
     loadMembers()
+  }, [])
+
+  // The roster is populated by players connecting, not by the DM adding
+  // entries — so it needs to refresh itself whenever sync state changes,
+  // not just on mount.
+  useEffect(() => {
+    return window.api.partySync.onUpdate(() => loadMembers())
   }, [])
 
   async function loadMembers() {
@@ -44,17 +51,11 @@ export function PartyPage() {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto px-6 py-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="font-display text-xl font-semibold text-white">The Party</h2>
-            <p className="text-slate-500 text-sm mt-0.5">
-              {members.length} adventurer{members.length !== 1 ? 's' : ''} · click a member to view faction reputation
-            </p>
-          </div>
-          <button onClick={() => openMemberForm()} className="btn-primary flex items-center gap-2">
-            <Plus size={14} />
-            Add Member
-          </button>
+        <div className="mb-6">
+          <h2 className="font-display text-xl font-semibold text-white">The Party</h2>
+          <p className="text-slate-500 text-sm mt-0.5">
+            {members.length} adventurer{members.length !== 1 ? 's' : ''} · click a member to view faction reputation
+          </p>
         </div>
 
         <div className="mb-8">
@@ -68,9 +69,9 @@ export function PartyPage() {
         ) : members.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-slate-500 text-sm">No party members yet.</p>
-            <button onClick={() => openMemberForm()} className="mt-3 text-amber-400 hover:text-amber-300 text-sm transition-colors">
-              Add your first adventurer →
-            </button>
+            <p className="text-slate-600 text-xs mt-1.5">
+              Start Player Sync above — the roster fills in as players connect their Companion app.
+            </p>
           </div>
         ) : (
           <>

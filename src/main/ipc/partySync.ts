@@ -2,8 +2,10 @@ import { ipcMain } from 'electron'
 import { getMainWin } from '../mainWindow'
 import {
   startServer, stopServer, isRunning, getPlayers, getThreads,
-  getLanAddress, onStateChange, sendDmReply
+  getLanAddress, onStateChange, onSnapshot, sendDmReply
 } from '../server'
+import { linkOrCreatePartyMember } from './party'
+import { syncPartyCombatantHp } from './encounter'
 
 function pushUpdate(): void {
   const win = getMainWin()
@@ -18,6 +20,10 @@ function pushUpdate(): void {
 
 export function registerPartySyncHandlers(): void {
   onStateChange(pushUpdate)
+  onSnapshot((clientId, snapshot) => {
+    const partyMemberId = linkOrCreatePartyMember(clientId, snapshot.name, snapshot.initiative)
+    syncPartyCombatantHp(partyMemberId, snapshot.hp_current, snapshot.hp_max)
+  })
 
   ipcMain.handle('partySync:start', () => {
     const result = startServer()

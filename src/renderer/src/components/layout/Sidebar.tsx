@@ -1,5 +1,6 @@
 import { BookOpen, Users, ScrollText, Search, Map, Swords, CalendarDays } from 'lucide-react'
 import { useUIStore } from '../../store/uiStore'
+import { useSettings } from '../../contexts/SettingsContext'
 import type { Page } from '../../types'
 
 const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
@@ -13,9 +14,14 @@ const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
 
 export function Sidebar() {
   const { currentPage, setCurrentPage, setSearchOpen } = useUIStore()
+  const { sidebar } = useSettings()
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-surface-raised border-r border-border flex flex-col">
+    <aside
+      className={`w-56 flex-shrink-0 bg-surface-raised flex flex-col ${
+        sidebar === 'right' ? 'border-l border-border' : 'border-r border-border'
+      }`}
+    >
       <div className="px-5 py-5 border-b border-border">
         <h1 className="font-display text-amber-400 text-lg font-semibold tracking-wide">
           LoreKeeper

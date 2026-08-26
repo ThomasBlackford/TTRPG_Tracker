@@ -67,7 +67,8 @@ function createSchema(): void {
       avatar_path TEXT,
       initiative  INTEGER,
       sort_order  INTEGER NOT NULL DEFAULT 0,
-      resources   TEXT NOT NULL DEFAULT '[]'
+      resources   TEXT NOT NULL DEFAULT '[]',
+      client_id   TEXT UNIQUE
     );
 
     CREATE TABLE IF NOT EXISTS reputation (
@@ -194,5 +195,19 @@ function runMigrations(): void {
       CREATE INDEX IF NOT EXISTS idx_timeline_day ON timeline_events(day_number);
     `)
     d.prepare('UPDATE schema_version SET version = 3').run()
+  }
+
+  if (v < 4) {
+    // Links a party member to a LoreKeeper Companion (player) app's stable
+    // sync identity — that's what lets a connecting player auto-populate
+    // the roster instead of the DM adding them by hand. NULL for any
+    // member never claimed by a synced player.
+    // SQLite's ALTER TABLE ADD COLUMN doesn't permit a UNIQUE constraint —
+    // uniqueness here is enforced in linkOrCreatePartyMember() instead.
+    const cols = d.prepare('PRAGMA table_info(party_members)').all() as { name: string }[]
+    if (!cols.some((c) => c.name === 'client_id')) {
+      d.exec('ALTER TABLE party_members ADD COLUMN client_id TEXT')
+    }
+    d.prepare('UPDATE schema_version SET version = 4').run()
   }
 }

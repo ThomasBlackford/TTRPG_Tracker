@@ -2,7 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initDb } from './db'
-import { setMainWin } from './mainWindow'
+import { setMainWin, getMainWin } from './mainWindow'
 import { registerCardHandlers } from './ipc/cards'
 import { registerPartyHandlers } from './ipc/party'
 import { registerSessionHandlers } from './ipc/sessions'
@@ -46,32 +46,49 @@ function createWindow(): void {
   }
 }
 
-app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.lorekeeper.app')
-
-  app.on('browser-window-created', (_, window) => {
-    optimizer.watchWindowShortcuts(window)
+// A second launch (double-clicked by accident, or opened again without
+// noticing it was already running) would bind the sync server's port a
+// second time and fail confusingly. Redirect it to focus the existing
+// window instead of starting a second copy of the app.
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+} else {
+  app.on('second-instance', () => {
+    const win = getMainWin()
+    if (win) {
+      if (win.isMinimized()) win.restore()
+      win.focus()
+    }
   })
 
-  initDb(app.getPath('userData'))
+  app.whenReady().then(() => {
+    electronApp.setAppUserModelId('com.lorekeeper.app')
 
-  registerCardHandlers()
-  registerPartyHandlers()
-  registerSessionHandlers()
-  registerSearchHandlers()
-  registerMapHandlers()
-  registerEncounterHandlers()
-  registerTimelineHandlers()
-  registerPartySyncHandlers()
+    app.on('browser-window-created', (_, window) => {
+      optimizer.watchWindowShortcuts(window)
+    })
 
-  createWindow()
+    initDb(app.getPath('userData'))
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    registerCardHandlers()
+    registerPartyHandlers()
+    registerSessionHandlers()
+    registerSearchHandlers()
+    registerMapHandlers()
+    registerEncounterHandlers()
+    registerTimelineHandlers()
+    registerPartySyncHandlers()
+
+    createWindow()
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow()
+    })
   })
-})
 
-app.on('window-all-closed', () => {
-  stopServer()
-  if (process.platform !== 'darwin') app.quit()
-})
+  app.on('window-all-closed', () => {
+    stopServer()
+    if (process.platform !== 'darwin') app.quit()
+  })
+}

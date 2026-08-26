@@ -43,6 +43,7 @@ export interface PartyMember {
   initiative: number | null
   sort_order: number
   resources: Resource[]
+  client_id: string | null // set once a synced player claims this roster entry
 }
 
 export interface Reputation {
@@ -179,6 +180,7 @@ export interface PlayerSnapshot {
   class: string
   level: number
   ac: number | null
+  initiative: number | null
   hp_current: number | null
   hp_max: number | null
   spellSlots: { level: number; max: number; current: number }[]

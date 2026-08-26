@@ -19,7 +19,6 @@ interface ElectronAPI {
     getMembers: () => Promise<PartyMember[]>
     saveMember: (member: Partial<PartyMember> & { name: string }) => Promise<PartyMember>
     deleteMember: (id: string) => Promise<void>
-    updateInitiative: (id: string, initiative: number | null) => Promise<void>
     updateResources: (id: string, resources: Resource[]) => Promise<void>
     getReputation: (memberId: string) => Promise<Reputation[]>
     setReputation: (memberId: string, factionId: string, score: number) => Promise<void>
