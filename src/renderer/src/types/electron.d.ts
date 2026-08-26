@@ -1,4 +1,4 @@
-import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent } from './index'
+import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState } from './index'
 
 interface ElectronAPI {
   cards: {
@@ -73,11 +73,19 @@ interface ElectronAPI {
     start: () => Promise<EncounterState>
     end: () => Promise<EncounterState>
     addMonster: (data: { name: string; hp_max?: number; ac?: number; initiative?: number }) => Promise<EncounterState>
+    addPartyMember: (memberId: string) => Promise<EncounterState>
     updateCombatant: (id: string, changes: Partial<Pick<Combatant, 'hp_current' | 'conditions' | 'initiative' | 'name' | 'ac'>>) => Promise<EncounterState>
     removeCombatant: (id: string) => Promise<EncounterState>
     nextTurn: () => Promise<EncounterState>
     prevTurn: () => Promise<EncounterState>
     onUpdate: (cb: (state: EncounterState | null) => void) => () => void
+  }
+  partySync: {
+    start: () => Promise<{ ok: boolean; error?: string; running: boolean; address: string | null }>
+    stop: () => Promise<{ running: boolean }>
+    status: () => Promise<PartySyncState>
+    reply: (clientId: string, text: string) => Promise<{ ok: boolean; error?: string }>
+    onUpdate: (cb: (state: PartySyncState) => void) => () => void
   }
   dialog: {
     openImage: () => Promise<string | null>

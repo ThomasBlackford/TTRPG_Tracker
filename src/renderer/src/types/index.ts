@@ -169,3 +169,47 @@ export interface SceneData {
   title?: string
   subtitle?: string
 }
+
+// Live data pushed over LAN from a connected LoreKeeper Companion (player)
+// app — separate from the DM's own `party_members` table, since this is
+// telemetry from the player's own app rather than anything the DM authored.
+export interface PlayerSnapshot {
+  name: string
+  race: string
+  class: string
+  level: number
+  ac: number | null
+  hp_current: number | null
+  hp_max: number | null
+  spellSlots: { level: number; max: number; current: number }[]
+  resources: { id: string; name: string; current: number; max: number; color: string }[]
+  conditions: Condition[]
+}
+
+export interface ConnectedPlayer {
+  clientId: string
+  snapshot: PlayerSnapshot
+  lastSeen: number
+}
+
+export interface DmThreadMessage {
+  from: 'player' | 'dm'
+  text: string
+  at: number
+}
+
+// One conversation per player, keyed by their stable client_id so a
+// reconnect (WiFi hiccup, app restart) resumes the same thread instead of
+// starting a new one.
+export interface DmThread {
+  clientId: string
+  playerName: string
+  messages: DmThreadMessage[]
+}
+
+export interface PartySyncState {
+  running: boolean
+  address: string | null
+  players: ConnectedPlayer[]
+  threads: DmThread[]
+}

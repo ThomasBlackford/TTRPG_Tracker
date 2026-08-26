@@ -106,6 +106,30 @@ export function registerEncounterHandlers(): void {
     return buildState(db)
   })
 
+  ipcMain.handle('encounter:addPartyMember', (_e, memberId: string) => {
+    const db = getDb()
+    const member = db
+      .prepare('SELECT id, name, initiative FROM party_members WHERE id=?')
+      .get(memberId) as PartyMemberRow | undefined
+    if (!member) return buildState(db)
+
+    const exists = db
+      .prepare('SELECT 1 FROM encounter_combatants WHERE party_member_id=?')
+      .get(memberId)
+    if (exists) return buildState(db)
+
+    const count = (
+      db.prepare('SELECT COUNT(*) as c FROM encounter_combatants').get() as { c: number }
+    ).c
+    db.prepare(
+      'INSERT INTO encounter_combatants (id, name, type, party_member_id, initiative, sort_order, conditions) VALUES (?,?,?,?,?,?,?)'
+    ).run(uuidv4(), member.name, 'party', member.id, member.initiative ?? null, count, '[]')
+
+    const state = buildState(db)
+    pushEncounterToPresentation(db)
+    return state
+  })
+
   ipcMain.handle(
     'encounter:addMonster',
     (_e, data: { name: string; hp_max?: number; ac?: number; initiative?: number }) => {

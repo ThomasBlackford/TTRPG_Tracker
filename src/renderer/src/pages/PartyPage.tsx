@@ -6,6 +6,7 @@ import { PartyMemberSlot } from '../components/party/PartyMemberSlot'
 import { MemberForm } from '../components/party/MemberForm'
 import { MemberDetailModal } from '../components/party/MemberDetailModal'
 import { InitiativeTracker } from '../components/party/InitiativeTracker'
+import { PlayerSyncPanel } from '../components/party/PlayerSyncPanel'
 
 export function PartyPage() {
   const { memberForm, openMemberForm } = useUIStore()
@@ -54,6 +55,10 @@ export function PartyPage() {
             <Plus size={14} />
             Add Member
           </button>
+        </div>
+
+        <div className="mb-8">
+          <PlayerSyncPanel />
         </div>
 
         {loading ? (

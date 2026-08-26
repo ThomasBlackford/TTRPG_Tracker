@@ -120,6 +120,7 @@ const api = {
     start: () => ipcRenderer.invoke('encounter:start'),
     end: () => ipcRenderer.invoke('encounter:end'),
     addMonster: (data: unknown) => ipcRenderer.invoke('encounter:addMonster', data),
+    addPartyMember: (memberId: string) => ipcRenderer.invoke('encounter:addPartyMember', memberId),
     updateCombatant: (id: string, changes: unknown) => ipcRenderer.invoke('encounter:updateCombatant', id, changes),
     removeCombatant: (id: string) => ipcRenderer.invoke('encounter:removeCombatant', id),
     nextTurn: () => ipcRenderer.invoke('encounter:nextTurn'),
@@ -128,6 +129,17 @@ const api = {
       const handler = (_e: IpcRendererEvent, state: unknown) => cb(state)
       ipcRenderer.on('encounter:update', handler)
       return () => ipcRenderer.removeListener('encounter:update', handler)
+    },
+  },
+  partySync: {
+    start: () => ipcRenderer.invoke('partySync:start'),
+    stop: () => ipcRenderer.invoke('partySync:stop'),
+    status: () => ipcRenderer.invoke('partySync:status'),
+    reply: (clientId: string, text: string) => ipcRenderer.invoke('partySync:reply', clientId, text),
+    onUpdate: (cb: (state: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, state: unknown) => cb(state)
+      ipcRenderer.on('partySync:update', handler)
+      return () => ipcRenderer.removeListener('partySync:update', handler)
     },
   },
   dialog: {

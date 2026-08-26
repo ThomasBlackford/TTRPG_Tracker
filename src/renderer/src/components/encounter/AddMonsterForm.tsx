@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus } from 'lucide-react'
+import { Plus, Dices } from 'lucide-react'
 import type { EncounterState } from '../../types'
 
 interface Props {
@@ -25,6 +25,10 @@ export function AddMonsterForm({ onAdd }: Props) {
     setHp('')
     setAc('')
     setInit('')
+  }
+
+  function rollInit() {
+    setInit(String(Math.floor(Math.random() * 20) + 1))
   }
 
   return (
@@ -73,6 +77,15 @@ export function AddMonsterForm({ onAdd }: Props) {
           />
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={rollInit}
+        className="w-full flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-xs border
+                   border-border text-slate-400 hover:text-amber-300 hover:border-amber-500/40 transition-colors"
+      >
+        <Dices size={12} /> Roll Initiative (d20)
+      </button>
 
       <button
         type="submit"

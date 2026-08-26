@@ -11,16 +11,22 @@ import { MapCanvas } from '../components/maps/MapCanvas'
 import { PinEditor } from '../components/maps/PinEditor'
 import { CardDetail } from '../components/cards/CardDetail'
 import { FogControls } from '../components/maps/FogControls'
+import { RulerControls } from '../components/maps/RulerControls'
 import { VfxControls } from '../components/maps/VfxControls'
 import { ScaleConfigModal } from '../components/maps/ScaleConfigModal'
+import { useMapPresentStore } from '../store/mapPresentStore'
 
 const DEFAULT_RULER: RulerState = { start: null, end: null, frozen: false, shareToPlayers: false }
 const DEFAULT_FOG_COLS = 64
 const DEFAULT_FOG_ROWS = 64
 
 export function MapPage() {
+  // Presenting + which map is current live outside this component's state —
+  // they must survive switching to another tab and back without desyncing
+  // from the actual (still-open) TV window. See mapPresentStore.
+  const { presenting, setPresenting, mapStack, setMapStack } = useMapPresentStore()
+
   const [maps, setMaps]     = useState<MapData[]>([])
-  const [mapStack, setMapStack] = useState<string[]>([])
   const [pins, setPins]     = useState<MapPin[]>([])
   const [editingPin, setEditingPin] = useState<MapPin | null>(null)
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null)
@@ -29,7 +35,6 @@ export function MapPage() {
   const [renameValue, setRenameValue] = useState('')
   const [newMapName, setNewMapName]   = useState('')
   const [creatingMap, setCreatingMap] = useState(false)
-  const [presenting, setPresenting]   = useState(false)
 
   // Tools
   const [activeTool, setActiveTool] = useState<MapTool>(null)
@@ -402,12 +407,14 @@ export function MapPage() {
     .map(id => maps.find(m => m.id === id))
     .filter(Boolean) as MapData[]
 
-  // Tool button helper
-  function toolBtn(tool: MapTool, icon: React.ReactNode, label: string, activeClass: string) {
+  // Tool button helper. Most tools just toggle activeTool; fog additionally
+  // needs to seed + push an initial fully-fogged state (see
+  // handleActivateFogTool), so it passes its own onClick override.
+  function toolBtn(tool: MapTool, icon: React.ReactNode, label: string, activeClass: string, onClick?: () => void) {
     const isActive = activeTool === tool
     return (
       <button
-        onClick={() => setActiveTool(isActive ? null : tool)}
+        onClick={onClick ?? (() => setActiveTool(isActive ? null : tool))}
         title={label}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
           isActive ? activeClass : 'border-border text-slate-400 hover:text-slate-200 hover:border-slate-500'
@@ -602,7 +609,7 @@ export function MapPage() {
                 <Settings size={13} />
               </button>
             )}
-            {currentMap && toolBtn('fog', <Cloud size={13} />, 'Fog', 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300')}
+            {currentMap && toolBtn('fog', <Cloud size={13} />, 'Fog', 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300', handleActivateFogTool)}
             {currentMap && toolBtn('ruler', <Ruler size={13} />, 'Ruler', 'bg-blue-500/20 border-blue-500/40 text-blue-300')}
             {currentMap && (
               <button
@@ -648,6 +655,14 @@ export function MapPage() {
           />
         )}
 
+        {/* Ruler sub-toolbar */}
+        {activeTool === 'ruler' && (
+          <RulerControls
+            shareToPlayers={rulerState.shareToPlayers}
+            onShareToggle={() => handleRulerChange({ shareToPlayers: !rulerState.shareToPlayers })}
+          />
+        )}
+
         {/* VFX sub-toolbar */}
         {activeTool === 'vfx' && (
           <VfxControls
@@ -682,6 +697,7 @@ export function MapPage() {
               onDragPin={handleDragPin}
               onSelectPin={p => setSelectedPinId(p?.id ?? null)}
               onUploadImage={handleUploadImage}
+              onNaturalSize={(w) => setNatW(w)}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center">

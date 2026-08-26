@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Edit, Trash2, Eye, EyeOff, Tag, MonitorPlay, Image, ChevronRight, Lock } from 'lucide-react'
 import type { Card, CardType } from '../../types'
 import { useUIStore } from '../../store/uiStore'
-import { CardTypeBadge, typeLabel } from './CardTypeBadge'
+import { CardTypeBadge } from './CardTypeBadge'
 
 const FIELD_LABELS: Record<string, Record<string, string>> = {
   npc:      { race: 'Race', role: 'Role/Class', affiliation: 'Faction', status: 'Status', voice: 'Voice Notes' },

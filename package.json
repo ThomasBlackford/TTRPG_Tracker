@@ -17,6 +17,7 @@
     "better-sqlite3": "^9.6.0",
     "lucide-react": "^0.379.0",
     "uuid": "^9.0.1",
+    "ws": "^8.21.3",
     "zustand": "^4.5.4"
   },
   "devDependencies": {
@@ -25,6 +26,7 @@
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.4.19",
     "electron": "^30.0.1",
@@ -41,10 +43,21 @@
     "appId": "com.lorekeeper.app",
     "productName": "LoreKeeper",
     "extraResources": [],
-    "files": ["out/**/*"],
-    "asarUnpack": ["node_modules/better-sqlite3/**/*"],
-    "win": { "target": "nsis", "signDlls": false },
-    "mac": { "target": "dmg" },
-    "linux": { "target": "AppImage" }
+    "files": [
+      "out/**/*"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "signDlls": false
+    },
+    "mac": {
+      "target": "dmg"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
   }
 }

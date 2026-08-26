@@ -1,6 +1,7 @@
 import { useUIStore } from './store/uiStore'
 import { Sidebar } from './components/layout/Sidebar'
 import { GlobalSearch } from './components/layout/GlobalSearch'
+import { SecretMessagesWidget } from './components/party/SecretMessagesWidget'
 import { LibraryPage } from './pages/LibraryPage'
 import { PartyPage } from './pages/PartyPage'
 import { SessionsPage } from './pages/SessionsPage'
@@ -23,6 +24,7 @@ export function App() {
         {currentPage === 'timeline'  && <TimelinePage />}
       </main>
       <GlobalSearch />
+      <SecretMessagesWidget />
     </div>
   )
 }

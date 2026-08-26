@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { initDb } from './db'
+import { setMainWin } from './mainWindow'
 import { registerCardHandlers } from './ipc/cards'
 import { registerPartyHandlers } from './ipc/party'
 import { registerSessionHandlers } from './ipc/sessions'
@@ -9,6 +10,8 @@ import { registerSearchHandlers } from './ipc/search'
 import { registerMapHandlers } from './ipc/maps'
 import { registerEncounterHandlers } from './ipc/encounter'
 import { registerTimelineHandlers } from './ipc/timeline'
+import { registerPartySyncHandlers } from './ipc/partySync'
+import { stopServer } from './server'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -26,6 +29,8 @@ function createWindow(): void {
       webSecurity: false
     }
   })
+
+  setMainWin(win)
 
   win.on('ready-to-show', () => win.show())
 
@@ -57,6 +62,7 @@ app.whenReady().then(() => {
   registerMapHandlers()
   registerEncounterHandlers()
   registerTimelineHandlers()
+  registerPartySyncHandlers()
 
   createWindow()
 
@@ -66,5 +72,6 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
+  stopServer()
   if (process.platform !== 'darwin') app.quit()
 })

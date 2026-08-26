@@ -37,6 +37,7 @@ interface Props {
   onDragPin: (id: string, x: number, y: number) => void
   onSelectPin: (pin: MapPin | null) => void
   onUploadImage: () => void
+  onNaturalSize?: (w: number, h: number) => void
 }
 
 function paintBrushCells(cells: number[], col: number, row: number, radius: number, mode: 'reveal' | 'hide', gridCols: number, gridRows: number) {
@@ -59,6 +60,7 @@ export function MapCanvas({
   gridVisible,
   onPlaceEffect,
   selectedPinId, onAddPin, onClickPin, onDragPin, onSelectPin, onUploadImage,
+  onNaturalSize,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imageRef     = useRef<HTMLImageElement>(null)
@@ -106,7 +108,8 @@ export function MapCanvas({
     }
     setImgRect({ width: w, height: h, offsetX: ox, offsetY: oy })
     setNatDims({ w: img.naturalWidth, h: img.naturalHeight })
-  }, [map.image_path])
+    onNaturalSize?.(img.naturalWidth, img.naturalHeight)
+  }, [map.image_path, onNaturalSize])
 
   useEffect(() => {
     recalc()

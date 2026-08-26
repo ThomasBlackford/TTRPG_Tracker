@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Swords, SkipForward } from 'lucide-react'
-import type { EncounterState, Combatant } from '../types'
+import { ChevronLeft, Swords, SkipForward } from 'lucide-react'
+import type { EncounterState, Combatant, PartyMember } from '../types'
 import { CombatantRow } from '../components/encounter/CombatantRow'
 import { AddMonsterForm } from '../components/encounter/AddMonsterForm'
+import { AddPartyMemberList } from '../components/encounter/AddPartyMemberList'
 
 export function EncounterPage() {
   const [state, setState] = useState<EncounterState | null>(null)
   const [loading, setLoading] = useState(true)
+  const [partyMembers, setPartyMembers] = useState<PartyMember[]>([])
 
   useEffect(() => {
     window.api.encounter.getState().then((s) => {
       setState(s)
       setLoading(false)
     })
+    window.api.party.getMembers().then(setPartyMembers)
   }, [])
 
   async function handleStart() {
@@ -53,6 +56,11 @@ export function EncounterPage() {
     return s
   }
 
+  async function handleAddPartyMember(memberId: string) {
+    const s = await window.api.encounter.addPartyMember(memberId)
+    setState(s)
+  }
+
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -84,6 +92,8 @@ export function EncounterPage() {
 
   const { round, currentIndex, combatants } = state
   const currentCombatant = combatants[currentIndex]
+  const inEncounterIds = new Set(combatants.map((c) => c.party_member_id).filter(Boolean))
+  const availablePartyMembers = partyMembers.filter((m) => !inEncounterIds.has(m.id))
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -153,6 +163,7 @@ export function EncounterPage() {
 
         {/* Right panel: add monster */}
         <div className="w-56 flex-shrink-0 border-l border-border bg-surface-raised p-4 overflow-y-auto">
+          <AddPartyMemberList available={availablePartyMembers} onAdd={handleAddPartyMember} />
           <AddMonsterForm onAdd={handleAddMonster} />
 
           <div className="mt-6 pt-4 border-t border-border">

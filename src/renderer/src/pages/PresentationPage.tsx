@@ -9,6 +9,7 @@ import { SpotlightOverlay } from '../components/maps/SpotlightOverlay'
 import { VfxOverlay, VFX_DURATIONS } from '../components/maps/VfxOverlay'
 import { RainLoop, StormLoop } from '../components/maps/AmbientVfxOverlay'
 import { ConditionBadge } from '../components/encounter/ConditionBadge'
+import { Skull } from 'lucide-react'
 
 interface Props {
   initialMapId: string
@@ -304,12 +305,13 @@ export function PresentationPage({ initialMapId }: Props) {
           <div className="flex-1 overflow-hidden py-2 space-y-1 px-2">
             {encounter.combatants.map((c: Combatant, i: number) => {
               const isCurrent = i === encounter.currentIndex
+              const isDown = c.hp_current != null && c.hp_current <= 0
               return (
                 <div
                   key={c.id}
                   className={`flex items-start gap-2 px-2 py-1.5 rounded-lg transition-colors ${
                     isCurrent ? 'bg-amber-500/20' : 'bg-transparent'
-                  }`}
+                  } ${isDown ? 'opacity-50 grayscale' : ''}`}
                 >
                   <div
                     className={`w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 ${
@@ -319,11 +321,18 @@ export function PresentationPage({ initialMapId }: Props) {
                     {i + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`text-xs font-medium truncate ${
+                    <p className={`flex items-center gap-1 min-w-0 text-xs font-medium ${
                       isCurrent ? 'text-amber-200' : c.type === 'party' ? 'text-sky-300/80' : 'text-rose-300/80'
                     }`}>
-                      {c.name}
+                      <span className="truncate">{c.name}</span>
+                      {isDown && <Skull size={10} className="text-white/40 flex-shrink-0" />}
                     </p>
+                    {c.type === 'party' && c.hp_current != null && (
+                      <p className="text-[10px] text-emerald-300/70 mt-0.5">
+                        {c.hp_current}
+                        {c.hp_max != null && <span className="text-white/30">/{c.hp_max}</span>} HP
+                      </p>
+                    )}
                     {c.conditions.length > 0 && (
                       <div className="flex flex-wrap gap-0.5 mt-0.5">
                         {c.conditions.map((cond) => (
