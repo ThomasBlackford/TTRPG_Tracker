@@ -86,6 +86,11 @@ interface ElectronAPI {
     reply: (clientId: string, text: string) => Promise<{ ok: boolean; error?: string }>
     onUpdate: (cb: (state: PartySyncState) => void) => () => void
   }
+  updater: {
+    status: () => Promise<{ ready: boolean }>
+    install: () => Promise<void>
+    onReady: (cb: () => void) => () => void
+  }
   dialog: {
     openImage: () => Promise<string | null>
     openMapImage: () => Promise<string | null>

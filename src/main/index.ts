@@ -11,7 +11,9 @@ import { registerMapHandlers } from './ipc/maps'
 import { registerEncounterHandlers } from './ipc/encounter'
 import { registerTimelineHandlers } from './ipc/timeline'
 import { registerPartySyncHandlers } from './ipc/partySync'
+import { registerUpdaterHandlers } from './ipc/updater'
 import { stopServer } from './server'
+import { initAutoUpdater } from './updater'
 
 function createWindow(): void {
   const win = new BrowserWindow({
@@ -79,8 +81,13 @@ if (!gotLock) {
     registerEncounterHandlers()
     registerTimelineHandlers()
     registerPartySyncHandlers()
+    registerUpdaterHandlers()
 
     createWindow()
+
+    // Skipped outside a packaged build — there's no update feed to check
+    // against in dev, and electron-updater errors loudly if it tries.
+    if (app.isPackaged) initAutoUpdater()
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow()

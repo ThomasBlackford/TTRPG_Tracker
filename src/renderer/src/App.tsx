@@ -3,6 +3,7 @@ import { useSettings } from './contexts/SettingsContext'
 import { Sidebar } from './components/layout/Sidebar'
 import { GlobalSearch } from './components/layout/GlobalSearch'
 import { SettingsButton } from './components/layout/SettingsButton'
+import { UpdateBanner } from './components/layout/UpdateBanner'
 import { SecretMessagesWidget } from './components/party/SecretMessagesWidget'
 import { LibraryPage } from './pages/LibraryPage'
 import { PartyPage } from './pages/PartyPage'
@@ -42,6 +43,7 @@ export function App() {
       <GlobalSearch />
       <SecretMessagesWidget />
       <SettingsButton />
+      <UpdateBanner />
     </div>
   )
 }

@@ -140,6 +140,15 @@ const api = {
       return () => ipcRenderer.removeListener('partySync:update', handler)
     },
   },
+  updater: {
+    status: () => ipcRenderer.invoke('updater:status'),
+    install: () => ipcRenderer.invoke('updater:install'),
+    onReady: (cb: () => void) => {
+      const handler = () => cb()
+      ipcRenderer.on('updater:ready', handler)
+      return () => ipcRenderer.removeListener('updater:ready', handler)
+    },
+  },
   dialog: {
     openImage: () => ipcRenderer.invoke('dialog:openImage'),
     openMapImage: () => ipcRenderer.invoke('dialog:openMapImage')
