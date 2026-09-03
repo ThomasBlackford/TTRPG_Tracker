@@ -184,15 +184,42 @@ export function sendDmReply(clientId: string, text: string): { ok: boolean; erro
   return delivered ? { ok: true } : { ok: false, error: 'Player is not currently connected' }
 }
 
-// Best-effort LAN IPv4 address for the DM to read off and hand to players —
-// there's no discovery mechanism, so this is what gets typed into the
-// companion app's "DM Server Address" field.
-export function getLanAddress(): string | null {
+// Adapters that exist on the machine but virtually never carry LAN traffic
+// to another physical PC in the room — VPN clients, hypervisor virtual
+// switches, container networking. `os.networkInterfaces()` has no notion of
+// "the real one," and its object-key order is whatever the OS reports, which
+// is very often one of these rather than the actual WiFi/Ethernet adapter.
+const LIKELY_VIRTUAL_ADAPTER = /virtual|vethernet|hyper-v|vmware|virtualbox|docker|wsl|loopback|tailscale|zerotier|tap-|tun\d|ppp|bluetooth/i
+
+function score(adapterName: string, address: string): number {
+  let s = 0
+  if (LIKELY_VIRTUAL_ADAPTER.test(adapterName)) s -= 10
+  if (/^192\.168\./.test(address)) s += 3       // by far the most common home-LAN range
+  else if (/^10\./.test(address)) s += 2
+  else if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(address)) s += 1
+  return s
+}
+
+// Every plausible LAN address, best guess first — exposed as a list (not
+// just the top pick) because the heuristic above is still a guess: a DM
+// running a VPN, multiple NICs, or an unusual router setup can make the
+// "obvious" adapter score wrong. If the top address doesn't work for a
+// player, the DM can hand out one of the others instead of being stuck.
+export function getLanAddresses(): string[] {
   const nets = networkInterfaces()
-  for (const entries of Object.values(nets)) {
+  const candidates: { address: string; score: number }[] = []
+  for (const [name, entries] of Object.entries(nets)) {
     for (const net of entries ?? []) {
-      if (net.family === 'IPv4' && !net.internal) return `${net.address}:${PARTY_SYNC_PORT}`
+      if (net.family !== 'IPv4' || net.internal) continue
+      candidates.push({ address: `${net.address}:${PARTY_SYNC_PORT}`, score: score(name, net.address) })
     }
   }
-  return null
+  return candidates.sort((a, b) => b.score - a.score).map((c) => c.address)
+}
+
+// Best-effort single LAN IPv4 address for the DM to read off and hand to
+// players — there's no discovery mechanism, so this is what gets typed into
+// the companion app's "DM Server Address" field.
+export function getLanAddress(): string | null {
+  return getLanAddresses()[0] ?? null
 }

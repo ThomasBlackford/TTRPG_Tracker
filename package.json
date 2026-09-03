@@ -1,6 +1,6 @@
 {
   "name": "lorekeeper",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "TTRPG campaign manager for Dungeon Masters",
   "main": "out/main/index.js",
   "scripts": {

@@ -2,7 +2,7 @@ import { ipcMain } from 'electron'
 import { getMainWin } from '../mainWindow'
 import {
   startServer, stopServer, isRunning, getPlayers, getThreads,
-  getLanAddress, onStateChange, onSnapshot, sendDmReply
+  getLanAddress, getLanAddresses, onStateChange, onSnapshot, sendDmReply
 } from '../server'
 import { linkOrCreatePartyMember } from './party'
 import { syncPartyCombatantHp } from './encounter'
@@ -13,6 +13,7 @@ function pushUpdate(): void {
   win.webContents.send('partySync:update', {
     running: isRunning(),
     address: isRunning() ? getLanAddress() : null,
+    addresses: isRunning() ? getLanAddresses() : [],
     players: getPlayers(),
     threads: getThreads()
   })
@@ -31,7 +32,8 @@ export function registerPartySyncHandlers(): void {
     return {
       ...result,
       running: isRunning(),
-      address: isRunning() ? getLanAddress() : null
+      address: isRunning() ? getLanAddress() : null,
+      addresses: isRunning() ? getLanAddresses() : []
     }
   })
 
@@ -43,6 +45,7 @@ export function registerPartySyncHandlers(): void {
   ipcMain.handle('partySync:status', () => ({
     running: isRunning(),
     address: isRunning() ? getLanAddress() : null,
+    addresses: isRunning() ? getLanAddresses() : [],
     players: getPlayers(),
     threads: getThreads()
   }))

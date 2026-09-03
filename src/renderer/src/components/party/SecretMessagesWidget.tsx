@@ -13,6 +13,7 @@ export function SecretMessagesWidget() {
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null)
   const [replyText, setReplyText] = useState('')
   const [seenCounts, setSeenCounts] = useState<Record<string, number>>({})
+  const [showAltAddresses, setShowAltAddresses] = useState(false)
 
   useEffect(() => {
     window.api.partySync.status().then(setState)
@@ -51,7 +52,7 @@ export function SecretMessagesWidget() {
   async function handleToggleServer() {
     if (state?.running) {
       const result = await window.api.partySync.stop()
-      setState((s) => (s ? { ...s, running: result.running, address: null } : s))
+      setState((s) => (s ? { ...s, running: result.running, address: null, addresses: [] } : s))
       return
     }
     setStarting(true)
@@ -61,7 +62,8 @@ export function SecretMessagesWidget() {
       players: s?.players ?? [],
       threads: s?.threads ?? [],
       running: result.running,
-      address: result.address
+      address: result.address,
+      addresses: result.addresses
     }))
     if (!result.ok) alert(`Couldn't start player sync: ${result.error}`)
   }
@@ -127,6 +129,37 @@ export function SecretMessagesWidget() {
               </button>
             </div>
           </div>
+
+          {/* This machine can have more than one network adapter (WiFi + a
+             VPN, Ethernet + WiFi, etc.) — the address above is just the best
+             guess. If a player can't connect, try one of these instead. */}
+          {state?.running && state.addresses.length > 1 && (
+            <div className="px-3 py-2 border-b border-border flex-shrink-0 text-[11px]">
+              <button
+                onClick={() => setShowAltAddresses((v) => !v)}
+                className="text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {showAltAddresses ? 'Hide' : 'Not working?'} — {state.addresses.length - 1} other address
+                {state.addresses.length - 1 === 1 ? '' : 'es'} to try
+              </button>
+              {showAltAddresses && (
+                <div className="mt-1.5 space-y-1">
+                  {state.addresses.slice(1).map((addr) => (
+                    <div key={addr} className="flex items-center justify-between gap-2 text-slate-400">
+                      <span className="font-mono">{addr}</span>
+                      <button
+                        onClick={() => navigator.clipboard.writeText(addr)}
+                        title="Copy address"
+                        className="text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"
+                      >
+                        <Copy size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {threads.length === 0 ? (
             <div className="flex-1 flex items-center justify-center p-6 min-h-[12rem]">

@@ -212,6 +212,10 @@ export interface DmThread {
 export interface PartySyncState {
   running: boolean
   address: string | null
+  // Every plausible LAN address the DM's PC has, best guess first (`address`
+  // is just addresses[0]) — shown as a fallback list in the UI since the
+  // "obvious" adapter isn't always the reachable one (VPNs, multiple NICs).
+  addresses: string[]
   players: ConnectedPlayer[]
   threads: DmThread[]
 }

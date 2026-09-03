@@ -80,7 +80,7 @@ interface ElectronAPI {
     onUpdate: (cb: (state: EncounterState | null) => void) => () => void
   }
   partySync: {
-    start: () => Promise<{ ok: boolean; error?: string; running: boolean; address: string | null }>
+    start: () => Promise<{ ok: boolean; error?: string; running: boolean; address: string | null; addresses: string[] }>
     stop: () => Promise<{ running: boolean }>
     status: () => Promise<PartySyncState>
     reply: (clientId: string, text: string) => Promise<{ ok: boolean; error?: string }>
