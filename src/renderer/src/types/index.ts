@@ -44,6 +44,7 @@ export interface PartyMember {
   sort_order: number
   resources: Resource[]
   client_id: string | null // set once a synced player claims this roster entry
+  dm_notes: string // private — never synced to the player's own app
 }
 
 export interface Reputation {
@@ -57,20 +58,44 @@ export interface SessionNote {
   id: string
   session_number: number | null
   title: string
-  content: string
+  content: string // deprecated — pre-migration notes, superseded by recap
+  recap: string // what actually happened
+  prep_notes: string // follow-ups / what to bring into next session
   linked_cards: string[]
+  linked_party_members: string[]
   session_date: string
   created_at: string
 }
 
-export interface SearchResult {
+export type ThreadStatus = 'open' | 'resolved'
+
+// A plot hook, promise, or reminder that needs to outlive a single session's
+// notes — the running "don't forget X" board.
+export interface Thread {
   id: string
-  type: CardType
+  text: string
+  status: ThreadStatus
+  linked_card_id: string | null
+  linked_member_id: string | null
+  created_at: string
+  resolved_at: string | null
+  sort_order: number
+}
+
+export type SearchResultKind = 'card' | 'session' | 'thread'
+
+// Cards carry their full original shape (type/tags/is_public all matter for
+// the existing card-search UI); sessions and threads are lighter-weight —
+// just enough to show a result row and jump to the right place.
+export interface SearchResult {
+  kind: SearchResultKind
+  id: string
   name: string
   description: string
-  image_path: string | null
-  tags: string[]
-  is_public: number
+  type?: CardType
+  image_path?: string | null
+  tags?: string[]
+  is_public?: number
 }
 
 export interface MapData {
@@ -138,7 +163,7 @@ export interface AmbientVfxState {
 
 export const DEFAULT_AMBIENT_VFX: AmbientVfxState = { rain: false, stormLightning: false }
 
-export type Page = 'library' | 'party' | 'sessions' | 'maps' | 'encounter' | 'timeline'
+export type Page = 'library' | 'party' | 'sessions' | 'threads' | 'maps' | 'encounter' | 'timeline'
 
 export type Condition =
   'Blinded' | 'Charmed' | 'Deafened' | 'Exhausted' | 'Frightened' |

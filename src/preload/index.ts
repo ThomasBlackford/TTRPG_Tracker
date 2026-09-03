@@ -31,6 +31,12 @@ const api = {
     save: (note: Record<string, unknown>) => ipcRenderer.invoke('sessions:save', note),
     delete: (id: string) => ipcRenderer.invoke('sessions:delete', id)
   },
+  threads: {
+    list: () => ipcRenderer.invoke('threads:list'),
+    create: (data: Record<string, unknown>) => ipcRenderer.invoke('threads:create', data),
+    update: (id: string, changes: Record<string, unknown>) => ipcRenderer.invoke('threads:update', id, changes),
+    delete: (id: string) => ipcRenderer.invoke('threads:delete', id)
+  },
   search: {
     query: (q: string) => ipcRenderer.invoke('search:query', q)
   },

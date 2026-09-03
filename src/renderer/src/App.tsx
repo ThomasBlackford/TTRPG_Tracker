@@ -8,9 +8,11 @@ import { SecretMessagesWidget } from './components/party/SecretMessagesWidget'
 import { LibraryPage } from './pages/LibraryPage'
 import { PartyPage } from './pages/PartyPage'
 import { SessionsPage } from './pages/SessionsPage'
+import { ThreadsPage } from './pages/ThreadsPage'
 import { MapPage } from './pages/MapPage'
 import { EncounterPage } from './pages/EncounterPage'
 import { TimelinePage } from './pages/TimelinePage'
+import { QuickThreadWidget } from './components/layout/QuickThreadWidget'
 
 export function App() {
   const { currentPage } = useUIStore()
@@ -21,6 +23,7 @@ export function App() {
       {currentPage === 'library'  && <LibraryPage />}
       {currentPage === 'party'    && <PartyPage />}
       {currentPage === 'sessions' && <SessionsPage />}
+      {currentPage === 'threads'  && <ThreadsPage />}
       {currentPage === 'maps'     && <MapPage />}
       {currentPage === 'encounter' && <EncounterPage />}
       {currentPage === 'timeline'  && <TimelinePage />}
@@ -42,6 +45,7 @@ export function App() {
       )}
       <GlobalSearch />
       <SecretMessagesWidget />
+      <QuickThreadWidget />
       <SettingsButton />
       <UpdateBanner />
     </div>

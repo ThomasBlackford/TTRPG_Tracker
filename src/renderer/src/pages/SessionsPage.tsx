@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { Plus, ScrollText, Trash2, Edit } from 'lucide-react'
 import type { SessionNote } from '../types'
 import { SessionEntry } from '../components/sessions/SessionEntry'
+import { useUIStore } from '../store/uiStore'
 
 export function SessionsPage() {
+  const { pendingSessionId, setPendingSessionId } = useUIStore()
   const [notes, setNotes] = useState<SessionNote[]>([])
   const [loading, setLoading] = useState(true)
   const [formNote, setFormNote] = useState<SessionNote | null>(null)
@@ -12,6 +14,16 @@ export function SessionsPage() {
   useEffect(() => {
     loadNotes()
   }, [])
+
+  // A search result for a session note lands here with pendingSessionId set
+  // — open it for editing, then clear the flag so it doesn't reopen later.
+  useEffect(() => {
+    if (!pendingSessionId) return
+    window.api.sessions.get(pendingSessionId).then((n) => {
+      if (n) { setFormNote(n); setShowForm(true) }
+      setPendingSessionId(null)
+    })
+  }, [pendingSessionId, setPendingSessionId])
 
   async function loadNotes() {
     setLoading(true)
@@ -84,9 +96,14 @@ export function SessionsPage() {
                       <span className="text-xs text-slate-500">{note.session_date}</span>
                     </div>
                     <h3 className="text-sm font-semibold text-slate-100">{note.title}</h3>
-                    {note.content && (
+                    {note.recap && (
                       <p className="text-xs text-slate-500 mt-1.5 line-clamp-2 leading-relaxed">
-                        {note.content}
+                        {note.recap}
+                      </p>
+                    )}
+                    {note.prep_notes && (
+                      <p className="text-xs text-amber-500/60 mt-1 line-clamp-1 leading-relaxed">
+                        Follow-up: {note.prep_notes}
                       </p>
                     )}
                   </div>

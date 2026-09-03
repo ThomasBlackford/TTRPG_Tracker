@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
-import { Search, X } from 'lucide-react'
+import { Search, X, ScrollText, ListChecks } from 'lucide-react'
 import { useUIStore } from '../../store/uiStore'
 import { useSearchStore } from '../../store/searchStore'
 import type { CardType, SearchResult } from '../../types'
 import { CardTypeBadge, typeLabel } from '../cards/CardTypeBadge'
 
+const GROUP_LABELS: Record<string, string> = { session: 'Session Notes', thread: 'Threads' }
+
 export function GlobalSearch() {
-  const { isSearchOpen, setSearchOpen, setCurrentPage, setSelectedCard } = useUIStore()
+  const { isSearchOpen, setSearchOpen, setCurrentPage, setSelectedCard, setPendingSessionId } = useUIStore()
   const { query, results, isLoading, search, clear } = useSearchStore()
   const inputRef = useRef<HTMLInputElement>(null)
   const [debounceTimer, setDebounceTimer] = useState<ReturnType<typeof setTimeout> | null>(null)
@@ -42,10 +44,17 @@ export function GlobalSearch() {
   }
 
   async function handleSelect(result: SearchResult) {
-    const card = await window.api.cards.get(result.id)
-    if (card) {
-      setCurrentPage('library')
-      setSelectedCard(card)
+    if (result.kind === 'session') {
+      setCurrentPage('sessions')
+      setPendingSessionId(result.id)
+    } else if (result.kind === 'thread') {
+      setCurrentPage('threads')
+    } else {
+      const card = await window.api.cards.get(result.id)
+      if (card) {
+        setCurrentPage('library')
+        setSelectedCard(card)
+      }
     }
     handleClose()
   }
@@ -83,20 +92,26 @@ export function GlobalSearch() {
             <p className="text-slate-600 text-sm text-center py-8">Type to search your campaign...</p>
           )}
 
-          {Object.entries(grouped).map(([type, items]) => (
-            <div key={type}>
+          {Object.entries(grouped).map(([groupKey, items]) => (
+            <div key={groupKey}>
               <div className="px-4 py-1.5">
                 <span className="text-xs text-slate-500 uppercase tracking-widest font-medium">
-                  {typeLabel(type as CardType)}
+                  {GROUP_LABELS[groupKey] ?? typeLabel(groupKey as CardType)}
                 </span>
               </div>
               {items.map((r) => (
                 <button
-                  key={r.id}
+                  key={`${r.kind}-${r.id}`}
                   onClick={() => handleSelect(r)}
                   className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-white/5 transition-colors text-left"
                 >
-                  <CardTypeBadge type={r.type} />
+                  {r.kind === 'card' && r.type ? (
+                    <CardTypeBadge type={r.type} />
+                  ) : r.kind === 'session' ? (
+                    <ScrollText size={14} className="text-slate-500 flex-shrink-0" />
+                  ) : (
+                    <ListChecks size={14} className="text-slate-500 flex-shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-slate-100 font-medium truncate">{r.name}</p>
                     {r.description && (
@@ -115,8 +130,9 @@ export function GlobalSearch() {
 
 function groupByType(results: SearchResult[]): Record<string, SearchResult[]> {
   return results.reduce((acc, r) => {
-    if (!acc[r.type]) acc[r.type] = []
-    acc[r.type].push(r)
+    const key = r.kind === 'card' ? r.type ?? 'card' : r.kind
+    if (!acc[key]) acc[key] = []
+    acc[key].push(r)
     return acc
   }, {} as Record<string, SearchResult[]>)
 }

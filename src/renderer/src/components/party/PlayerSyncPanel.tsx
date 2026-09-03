@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Radio } from 'lucide-react'
+import { Radio, Star } from 'lucide-react'
 import type { ConnectedPlayer, PartySyncState } from '../../types'
 import { ConditionBadge } from '../encounter/ConditionBadge'
 
@@ -11,7 +11,10 @@ function ConnectedPlayerRow({ player }: { player: ConnectedPlayer }) {
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-overlay/50 text-xs flex-wrap">
       <div className="w-32 flex-shrink-0 min-w-0">
-        <p className="text-slate-200 font-medium truncate">{snapshot.name || 'Unnamed'}</p>
+        <p className="text-slate-200 font-medium truncate flex items-center gap-1">
+          {snapshot.name || 'Unnamed'}
+          {snapshot.inspiration && <Star size={10} className="text-amber-400 flex-shrink-0" fill="currentColor" />}
+        </p>
         <p className="text-[10px] text-slate-600 truncate">
           {[snapshot.race, snapshot.class, snapshot.level ? `Lv ${snapshot.level}` : null].filter(Boolean).join(' · ') || '—'}
         </p>
@@ -22,7 +25,10 @@ function ConnectedPlayerRow({ player }: { player: ConnectedPlayer }) {
           <div className="relative h-1.5 rounded-full overflow-hidden bg-surface-base">
             <div className="absolute left-0 top-0 h-full rounded-full bg-emerald-500" style={{ width: `${hpPct}%` }} />
           </div>
-          <p className="text-[10px] text-slate-500 mt-0.5">{snapshot.hp_current ?? '—'}/{snapshot.hp_max} HP</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">
+            {snapshot.hp_current ?? '—'}/{snapshot.hp_max} HP
+            {snapshot.hp_temp > 0 && <span className="text-sky-400"> +{snapshot.hp_temp}</span>}
+          </p>
         </div>
       )}
 

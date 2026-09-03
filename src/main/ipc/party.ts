@@ -11,6 +11,7 @@ interface MemberRow {
   sort_order: number
   resources: string
   client_id: string | null
+  dm_notes: string
 }
 
 function rowToMember(row: MemberRow) {
@@ -69,22 +70,23 @@ export function registerPartyHandlers(): void {
   ipcMain.handle('party:saveMember', (_e, member: Record<string, unknown>) => {
     const db = getDb()
     const id = (member.id as string) || uuidv4()
-    const existing = db.prepare('SELECT id FROM party_members WHERE id = ?').get(id)
+    const existing = db.prepare('SELECT * FROM party_members WHERE id = ?').get(id) as MemberRow | undefined
     const resources = JSON.stringify(Array.isArray(member.resources) ? member.resources : [])
     const sortOrder = typeof member.sort_order === 'number' ? member.sort_order : 0
+    const dmNotes = 'dm_notes' in member ? (member.dm_notes as string) : existing?.dm_notes ?? ''
 
     if (existing) {
       db.prepare(`
-        UPDATE party_members SET name=?, player_name=?, avatar_path=?, initiative=?, sort_order=?, resources=?
+        UPDATE party_members SET name=?, player_name=?, avatar_path=?, initiative=?, sort_order=?, resources=?, dm_notes=?
         WHERE id=?
       `).run(member.name, member.player_name ?? '', member.avatar_path ?? null,
-        member.initiative ?? null, sortOrder, resources, id)
+        member.initiative ?? null, sortOrder, resources, dmNotes, id)
     } else {
       db.prepare(`
-        INSERT INTO party_members (id, name, player_name, avatar_path, initiative, sort_order, resources)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO party_members (id, name, player_name, avatar_path, initiative, sort_order, resources, dm_notes)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `).run(id, member.name, member.player_name ?? '', member.avatar_path ?? null,
-        member.initiative ?? null, sortOrder, resources)
+        member.initiative ?? null, sortOrder, resources, dmNotes)
     }
 
     return rowToMember(db.prepare('SELECT * FROM party_members WHERE id = ?').get(id) as MemberRow)

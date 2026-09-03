@@ -1,17 +1,20 @@
 import { useState, useEffect } from 'react'
-import { X, UserCircle2, Minus, Plus } from 'lucide-react'
+import { X, UserCircle2, Minus, Plus, Lock } from 'lucide-react'
 import type { PartyMember, Reputation } from '../../types'
 import { FactionRepBar } from './FactionRepBar'
 
 export function MemberDetailModal({
   member,
-  onClose
+  onClose,
+  onUpdate
 }: {
   member: PartyMember
   onClose: () => void
+  onUpdate: (m: PartyMember) => void
 }) {
   const [reps, setReps] = useState<Reputation[]>([])
   const [loading, setLoading] = useState(true)
+  const [notes, setNotes] = useState(member.dm_notes)
 
   useEffect(() => {
     window.api.party.getReputation(member.id).then((data) => {
@@ -19,6 +22,20 @@ export function MemberDetailModal({
       setLoading(false)
     })
   }, [member.id])
+
+  useEffect(() => setNotes(member.dm_notes), [member.id, member.dm_notes])
+
+  async function commitNotes() {
+    if (notes === member.dm_notes) return
+    const saved = await window.api.party.saveMember({
+      id: member.id,
+      name: member.name,
+      sort_order: member.sort_order,
+      resources: member.resources,
+      dm_notes: notes
+    })
+    onUpdate(saved)
+  }
 
   async function handleRepChange(factionId: string, score: number) {
     const clamped = Math.min(100, Math.max(-100, score))
@@ -59,8 +76,24 @@ export function MemberDetailModal({
           </button>
         </div>
 
-        {/* Faction Rep Section */}
         <div className="flex-1 overflow-y-auto px-5 py-4">
+          {/* DM Notes — private, never synced to this player's own app */}
+          <div className="mb-6">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Lock size={11} className="text-amber-500/60" />
+              <p className="text-xs text-amber-500/60 uppercase tracking-widest font-medium">DM Notes</p>
+            </div>
+            <textarea
+              className="input resize-none text-sm bg-amber-500/5 border-amber-500/20 focus:border-amber-500/50"
+              rows={3}
+              placeholder="Secrets, plot hooks tied to this character, things only you know..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={commitNotes}
+            />
+          </div>
+
+          {/* Faction Rep Section */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-xs text-slate-500 uppercase tracking-widest font-medium">
               Faction Reputation

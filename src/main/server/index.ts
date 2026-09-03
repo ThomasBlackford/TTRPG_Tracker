@@ -12,6 +12,8 @@ export interface PlayerSnapshot {
   initiative: number | null
   hp_current: number | null
   hp_max: number | null
+  hp_temp: number
+  inspiration: boolean
   spellSlots: { level: number; max: number; current: number }[]
   resources: { id: string; name: string; current: number; max: number; color: string }[]
   conditions: string[]

@@ -68,7 +68,8 @@ function createSchema(): void {
       initiative  INTEGER,
       sort_order  INTEGER NOT NULL DEFAULT 0,
       resources   TEXT NOT NULL DEFAULT '[]',
-      client_id   TEXT UNIQUE
+      client_id   TEXT UNIQUE,
+      dm_notes    TEXT NOT NULL DEFAULT ''
     );
 
     CREATE TABLE IF NOT EXISTS reputation (
@@ -101,15 +102,37 @@ function createSchema(): void {
 
     CREATE INDEX IF NOT EXISTS idx_map_pins_map ON map_pins(map_id);
 
+    -- "content" is kept only so pre-migration rows aren't silently dropped;
+    -- new/edited notes live in recap + prep_notes instead (see migration 5's
+    -- comment for why the split exists).
     CREATE TABLE IF NOT EXISTS session_notes (
-      id             TEXT PRIMARY KEY,
-      session_number INTEGER,
-      title          TEXT NOT NULL,
-      content        TEXT NOT NULL DEFAULT '',
-      linked_cards   TEXT NOT NULL DEFAULT '[]',
-      session_date   TEXT NOT NULL,
-      created_at     TEXT NOT NULL
+      id                    TEXT PRIMARY KEY,
+      session_number        INTEGER,
+      title                 TEXT NOT NULL,
+      content               TEXT NOT NULL DEFAULT '',
+      recap                 TEXT NOT NULL DEFAULT '',
+      prep_notes            TEXT NOT NULL DEFAULT '',
+      linked_cards          TEXT NOT NULL DEFAULT '[]',
+      linked_party_members  TEXT NOT NULL DEFAULT '[]',
+      session_date          TEXT NOT NULL,
+      created_at            TEXT NOT NULL
     );
+
+    -- Plot hooks, promises, and "don't forget X" reminders that need to
+    -- persist across sessions instead of getting buried inside one session's
+    -- notes. Not tied to a session — a thread can live open for months.
+    CREATE TABLE IF NOT EXISTS threads (
+      id              TEXT PRIMARY KEY,
+      text            TEXT NOT NULL,
+      status          TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')),
+      linked_card_id  TEXT REFERENCES cards(id) ON DELETE SET NULL,
+      linked_member_id TEXT REFERENCES party_members(id) ON DELETE SET NULL,
+      created_at      TEXT NOT NULL,
+      resolved_at     TEXT,
+      sort_order      INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_threads_status ON threads(status);
 
     CREATE TABLE IF NOT EXISTS schema_version (
       version INTEGER NOT NULL DEFAULT 0
@@ -209,5 +232,48 @@ function runMigrations(): void {
       d.exec('ALTER TABLE party_members ADD COLUMN client_id TEXT')
     }
     d.prepare('UPDATE schema_version SET version = 4').run()
+  }
+
+  if (v < 5) {
+    // DM note-taking overhaul: private notes on party members (the one
+    // entity type that never had them), a persistent Threads/plot-hooks
+    // board, and splitting session notes' single blob into "what happened"
+    // vs. "what to follow up on" so prep items don't get lost inside a
+    // recap paragraph. New installs already have all of this via
+    // createSchema() above.
+    const memberCols = d.prepare('PRAGMA table_info(party_members)').all() as { name: string }[]
+    if (!memberCols.some((c) => c.name === 'dm_notes')) {
+      d.exec("ALTER TABLE party_members ADD COLUMN dm_notes TEXT NOT NULL DEFAULT ''")
+    }
+
+    const sessionCols = d.prepare('PRAGMA table_info(session_notes)').all() as { name: string }[]
+    const sessionColNames = new Set(sessionCols.map((c) => c.name))
+    if (!sessionColNames.has('recap')) {
+      d.exec("ALTER TABLE session_notes ADD COLUMN recap TEXT NOT NULL DEFAULT ''")
+      // Carry existing notes forward as the recap rather than losing them.
+      d.exec('UPDATE session_notes SET recap = content')
+    }
+    if (!sessionColNames.has('prep_notes')) {
+      d.exec("ALTER TABLE session_notes ADD COLUMN prep_notes TEXT NOT NULL DEFAULT ''")
+    }
+    if (!sessionColNames.has('linked_party_members')) {
+      d.exec("ALTER TABLE session_notes ADD COLUMN linked_party_members TEXT NOT NULL DEFAULT '[]'")
+    }
+
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS threads (
+        id              TEXT PRIMARY KEY,
+        text            TEXT NOT NULL,
+        status          TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open','resolved')),
+        linked_card_id  TEXT REFERENCES cards(id) ON DELETE SET NULL,
+        linked_member_id TEXT REFERENCES party_members(id) ON DELETE SET NULL,
+        created_at      TEXT NOT NULL,
+        resolved_at     TEXT,
+        sort_order      INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE INDEX IF NOT EXISTS idx_threads_status ON threads(status);
+    `)
+
+    d.prepare('UPDATE schema_version SET version = 5').run()
   }
 }

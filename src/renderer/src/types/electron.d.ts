@@ -1,4 +1,4 @@
-import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState } from './index'
+import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState, Thread } from './index'
 
 interface ElectronAPI {
   cards: {
@@ -27,6 +27,12 @@ interface ElectronAPI {
     list: () => Promise<SessionNote[]>
     get: (id: string) => Promise<SessionNote | null>
     save: (note: Partial<SessionNote> & { title: string }) => Promise<SessionNote>
+    delete: (id: string) => Promise<void>
+  }
+  threads: {
+    list: () => Promise<Thread[]>
+    create: (data: { text: string; linked_card_id?: string | null; linked_member_id?: string | null }) => Promise<Thread>
+    update: (id: string, changes: Partial<Pick<Thread, 'text' | 'status' | 'linked_card_id' | 'linked_member_id'>>) => Promise<Thread | null>
     delete: (id: string) => Promise<void>
   }
   search: {

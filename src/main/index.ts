@@ -11,6 +11,7 @@ import { registerMapHandlers } from './ipc/maps'
 import { registerEncounterHandlers } from './ipc/encounter'
 import { registerTimelineHandlers } from './ipc/timeline'
 import { registerPartySyncHandlers } from './ipc/partySync'
+import { registerThreadHandlers } from './ipc/threads'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { stopServer } from './server'
 import { initAutoUpdater } from './updater'
@@ -94,6 +95,7 @@ if (!gotLock) {
     registerEncounterHandlers()
     registerTimelineHandlers()
     registerPartySyncHandlers()
+    registerThreadHandlers()
     registerUpdaterHandlers()
 
     createWindow()

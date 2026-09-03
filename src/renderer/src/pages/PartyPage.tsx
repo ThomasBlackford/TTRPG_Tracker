@@ -40,6 +40,7 @@ export function PartyPage() {
 
   function handleUpdate(updated: PartyMember) {
     setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+    setDetailMember((prev) => (prev?.id === updated.id ? updated : prev))
   }
 
   async function handleSaved(_m: PartyMember) {
@@ -108,6 +109,7 @@ export function PartyPage() {
         <MemberDetailModal
           member={detailMember}
           onClose={() => setDetailMember(null)}
+          onUpdate={handleUpdate}
         />
       )}
     </div>
