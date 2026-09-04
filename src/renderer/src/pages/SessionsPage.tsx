@@ -83,7 +83,7 @@ export function SessionsPage() {
             {notes.map((note) => (
               <div
                 key={note.id}
-                className="group bg-surface-raised border border-border rounded-xl px-5 py-4 hover:border-slate-600 transition-colors"
+                className="group bg-surface-raised border border-border rounded-xl px-5 py-4 hover:border-slate-600 transition-colors card-hover animate-fade-in-up"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">

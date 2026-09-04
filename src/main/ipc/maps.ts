@@ -177,6 +177,17 @@ export function registerMapHandlers(): void {
     pushToPlayer('maps:effectUpdate', data)
   })
 
+  ipcMain.handle('maps:pushRay', (_e, data: unknown) => {
+    pushToPlayer('maps:rayUpdate', data)
+  })
+
+  // Zones are session-only, in-memory state (see MapPage) — this always
+  // pushes the FULL current list rather than a delta, same as pushGrid,
+  // so the TV can't drift out of sync from a missed incremental update.
+  ipcMain.handle('maps:pushZones', (_e, data: unknown) => {
+    pushToPlayer('maps:zonesUpdate', data)
+  })
+
   ipcMain.handle('maps:pushAmbientVfx', (_e, data: { rain: boolean; stormLightning: boolean }) => {
     pushToPlayer('maps:ambientVfxUpdate', data)
   })

@@ -45,7 +45,7 @@ export function QuickThreadWidget() {
       </button>
 
       {open && (
-        <div className="absolute bottom-12 left-0 w-72 bg-surface-raised border border-border rounded-xl shadow-2xl p-3">
+        <div className="absolute bottom-12 left-0 w-72 bg-surface-raised border border-border rounded-xl shadow-2xl p-3 animate-popover origin-bottom-left">
           <p className="text-[10px] uppercase tracking-widest text-slate-500 font-medium mb-2">Quick Thread</p>
           <div className="flex items-center gap-1.5">
             <input

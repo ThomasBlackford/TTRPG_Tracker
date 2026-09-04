@@ -59,6 +59,8 @@ const api = {
     pushGrid: (data: unknown) => ipcRenderer.invoke('maps:pushGrid', data),
     pushEffect: (data: { id: string; type: string; x?: number; y?: number }) =>
       ipcRenderer.invoke('maps:pushEffect', data),
+    pushRay: (data: unknown) => ipcRenderer.invoke('maps:pushRay', data),
+    pushZones: (data: unknown) => ipcRenderer.invoke('maps:pushZones', data),
     pushAmbientVfx: (data: { rain: boolean; stormLightning: boolean }) =>
       ipcRenderer.invoke('maps:pushAmbientVfx', data),
     // Presentation window
@@ -102,6 +104,16 @@ const api = {
       const handler = (_e: IpcRendererEvent, data: { id: string; type: string; x?: number; y?: number }) => cb(data)
       ipcRenderer.on('maps:effectUpdate', handler)
       return () => ipcRenderer.removeListener('maps:effectUpdate', handler)
+    },
+    onRayUpdate: (cb: (data: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
+      ipcRenderer.on('maps:rayUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:rayUpdate', handler)
+    },
+    onZonesUpdate: (cb: (data: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, data: unknown) => cb(data)
+      ipcRenderer.on('maps:zonesUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:zonesUpdate', handler)
     },
     onAmbientVfxUpdate: (cb: (data: { rain: boolean; stormLightning: boolean }) => void) => {
       const handler = (_e: IpcRendererEvent, data: { rain: boolean; stormLightning: boolean }) => cb(data)

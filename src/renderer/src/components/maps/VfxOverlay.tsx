@@ -17,6 +17,11 @@ export const VFX_DURATIONS: Record<VfxEvent['type'], number> = {
   poison: 2600,
   heal: 1200,
   impact: 600,
+  rage: 900,
+  counterspell: 700,
+  radiant: 1100,
+  necrotic: 1400,
+  crit: 550,
 }
 
 // ── Shared canvas + rAF harness ──────────────────────────────────────────
@@ -79,13 +84,18 @@ export function VfxOverlay({ effect, imgRect, pan, scale }: Props) {
   const sy = imgRect.offsetY + pan.y + (effect.y ?? 0.5) * imgRect.height * scale
 
   switch (effect.type) {
-    case 'lightning': return <LightningFx />
-    case 'impact':    return <ImpactFx x={sx} y={sy} />
-    case 'fireball':  return <FireballFx x={sx} y={sy} />
-    case 'frost':     return <FrostFx x={sx} y={sy} />
-    case 'poison':    return <PoisonFx x={sx} y={sy} />
-    case 'heal':      return <HealFx x={sx} y={sy} />
-    default:          return null
+    case 'lightning':    return <LightningFx />
+    case 'impact':       return <ImpactFx x={sx} y={sy} />
+    case 'fireball':     return <FireballFx x={sx} y={sy} />
+    case 'frost':        return <FrostFx x={sx} y={sy} />
+    case 'poison':       return <PoisonFx x={sx} y={sy} />
+    case 'heal':         return <HealFx x={sx} y={sy} />
+    case 'rage':         return <RageFx x={sx} y={sy} />
+    case 'counterspell': return <CounterspellFx x={sx} y={sy} />
+    case 'radiant':      return <RadiantFx x={sx} y={sy} />
+    case 'necrotic':     return <NecroticFx x={sx} y={sy} />
+    case 'crit':         return <CritFx x={sx} y={sy} />
+    default:              return null
   }
 }
 
@@ -481,6 +491,238 @@ function ImpactFx({ x, y }: { x: number; y: number }) {
         style={{
           background: 'radial-gradient(circle at center, transparent 35%, rgba(0,0,0,0.6) 100%)',
           animation: 'vfx-impact-vignette 550ms ease-out forwards',
+        }}
+      />
+      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
+    </div>
+  )
+}
+
+// ── Rage — a fierce red shockwave ring + rising embers, no audio ────────
+
+interface EmberParticle { angle: number; speed: number; size: number; maxLife: number }
+
+function RageFx({ x, y }: { x: number; y: number }) {
+  const embers = useRef<EmberParticle[]>()
+  if (!embers.current) {
+    embers.current = Array.from({ length: 20 }, () => ({
+      angle: rand(-Math.PI, 0), speed: rand(50, 140), size: rand(3, 7), maxLife: rand(500, 800),
+    }))
+  }
+  const canvasRef = useEffectCanvas((ctx, elapsed) => {
+    const ringT = Math.min(1, elapsed / 500)
+    const ringR = easeOutCubic(ringT) * 130
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.strokeStyle = rgba([255, 60, 30], (1 - ringT) * 0.8)
+    ctx.lineWidth = 6 * (1 - ringT * 0.6)
+    ctx.beginPath(); ctx.arc(x, y, ringR, 0, Math.PI * 2); ctx.stroke()
+
+    for (const e of embers.current!) {
+      if (elapsed > e.maxLife) continue
+      const t = elapsed / e.maxLife
+      const sec = elapsed / 1000
+      const px = x + Math.cos(e.angle) * e.speed * sec
+      const py = y + Math.sin(e.angle) * e.speed * sec - 20 * sec
+      const alpha = 1 - t
+      const grad = ctx.createRadialGradient(px, py, 0, px, py, e.size)
+      grad.addColorStop(0, rgba([255, 200, 100], alpha))
+      grad.addColorStop(1, rgba([220, 40, 20], 0))
+      ctx.fillStyle = grad
+      ctx.beginPath(); ctx.arc(px, py, e.size, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.globalCompositeOperation = 'source-over'
+  })
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div
+        className="absolute inset-0"
+        style={{ background: 'radial-gradient(circle at center, rgba(200,30,20,0.28), transparent 60%)', animation: 'vfx-screen-flash 700ms ease-out forwards' }}
+      />
+      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
+    </div>
+  )
+}
+
+// ── Counterspell — a bright arcane flash with shattering crack lines ────
+
+function CounterspellFx({ x, y }: { x: number; y: number }) {
+  const cracks = useRef<number[]>()
+  if (!cracks.current) cracks.current = Array.from({ length: 10 }, () => rand(0, 360))
+
+  const canvasRef = useEffectCanvas((ctx, elapsed) => {
+    const t = Math.min(1, elapsed / 500)
+    const alpha = 1 - t
+    ctx.globalCompositeOperation = 'lighter'
+    const core = ctx.createRadialGradient(x, y, 0, x, y, 60 * easeOutCubic(t) + 10)
+    core.addColorStop(0, rgba([220, 190, 255], alpha))
+    core.addColorStop(1, rgba([140, 90, 220], 0))
+    ctx.fillStyle = core
+    ctx.beginPath(); ctx.arc(x, y, 60 * easeOutCubic(t) + 10, 0, Math.PI * 2); ctx.fill()
+
+    for (const deg of cracks.current!) {
+      const a = (deg * Math.PI) / 180
+      const len = 20 + easeOutCubic(t) * 60
+      ctx.strokeStyle = rgba([210, 180, 255], alpha * 0.85)
+      ctx.lineWidth = 1.5
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len)
+      ctx.stroke()
+    }
+    ctx.globalCompositeOperation = 'source-over'
+  })
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <canvas ref={canvasRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
+    </div>
+  )
+}
+
+// ── Radiant — a warm sunburst with light rays and rising sparkle ────────
+
+function RadiantFx({ x, y }: { x: number; y: number }) {
+  const RAYS = 12
+  const sparks = useRef<SparkParticle[]>()
+  if (!sparks.current) {
+    sparks.current = Array.from({ length: 14 }, (_, i) => ({
+      spawn: rand(0, 150), maxLife: rand(550, 800),
+      angle: (i / 14) * Math.PI * 2 + rand(-0.2, 0.2), dist: rand(40, 80),
+      size: rand(2.5, 4.5), wobbleFreq: rand(3, 6), wobbleAmp: rand(3, 8),
+      phase: rand(0, Math.PI * 2), gold: true,
+    }))
+  }
+  const canvasRef = useEffectCanvas((ctx, elapsed) => {
+    const t = Math.min(1, elapsed / 700)
+    const alpha = 1 - t
+    ctx.globalCompositeOperation = 'lighter'
+
+    for (let i = 0; i < RAYS; i++) {
+      const a = (i / RAYS) * Math.PI * 2
+      const len = 90 * easeOutCubic(t)
+      const grad = ctx.createLinearGradient(x, y, x + Math.cos(a) * len, y + Math.sin(a) * len)
+      grad.addColorStop(0, rgba([255, 250, 220], alpha))
+      grad.addColorStop(1, rgba([255, 220, 140], 0))
+      ctx.strokeStyle = grad
+      ctx.lineWidth = 3
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len); ctx.stroke()
+    }
+    const core = ctx.createRadialGradient(x, y, 0, x, y, 34)
+    core.addColorStop(0, rgba([255, 255, 245], alpha))
+    core.addColorStop(1, rgba([255, 230, 160], 0))
+    ctx.fillStyle = core
+    ctx.beginPath(); ctx.arc(x, y, 34, 0, Math.PI * 2); ctx.fill()
+
+    for (const p of sparks.current!) {
+      const age = elapsed - p.spawn
+      if (age < 0 || age > p.maxLife) continue
+      const pt = age / p.maxLife
+      const eased = easeOutCubic(pt)
+      const px = x + Math.cos(p.angle) * p.dist * eased
+      const py = y + Math.sin(p.angle) * p.dist * eased - eased * 30
+      const twinkle = 0.6 + 0.4 * Math.sin(age / 60 + p.phase)
+      const pAlpha = (pt < 0.2 ? pt / 0.2 : 1 - (pt - 0.2) / 0.8) * twinkle
+      const g = ctx.createRadialGradient(px, py, 0, px, py, p.size * 2)
+      g.addColorStop(0, rgba([255, 240, 190], pAlpha))
+      g.addColorStop(1, rgba([255, 210, 120], 0))
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.arc(px, py, p.size * 2, 0, Math.PI * 2); ctx.fill()
+    }
+    ctx.globalCompositeOperation = 'source-over'
+  })
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }} />
+}
+
+// ── Necrotic — dark energy that collapses inward, then withers outward ──
+
+interface WitherParticle { angle: number; speed: number; size: number; phase: number }
+
+function NecroticFx({ x, y }: { x: number; y: number }) {
+  const particles = useRef<WitherParticle[]>()
+  if (!particles.current) {
+    particles.current = Array.from({ length: 16 }, () => ({
+      angle: rand(0, Math.PI * 2), speed: rand(30, 70), size: rand(6, 14), phase: rand(0, Math.PI * 2),
+    }))
+  }
+  const canvasRef = useEffectCanvas((ctx, elapsed) => {
+    const duration = 1400
+    const t = Math.min(1, elapsed / duration)
+    // Draws inward for the first 30%, then releases outward — a drain,
+    // not an explosion.
+    const collapse = t < 0.3 ? 1 - t / 0.3 : 0
+    const release = t < 0.3 ? 0 : (t - 0.3) / 0.7
+
+    ctx.globalCompositeOperation = 'source-over'
+    const core = ctx.createRadialGradient(x, y, 0, x, y, 50)
+    core.addColorStop(0, rgba([70, 20, 90], (1 - release) * 0.5 + collapse * 0.3))
+    core.addColorStop(1, rgba([20, 5, 30], 0))
+    ctx.fillStyle = core
+    ctx.beginPath(); ctx.arc(x, y, 50, 0, Math.PI * 2); ctx.fill()
+
+    for (const p of particles.current!) {
+      const inR = 90 * collapse
+      const outR = 70 * easeOutCubic(release)
+      const r = collapse > 0 ? inR : outR
+      const px = x + Math.cos(p.angle) * r
+      const py = y + Math.sin(p.angle) * r + Math.sin(elapsed / 200 + p.phase) * 3
+      const alpha = collapse > 0 ? collapse * 0.6 : (1 - release) * 0.55
+      const g = ctx.createRadialGradient(px, py, 0, px, py, p.size)
+      g.addColorStop(0, rgba([130, 60, 160], alpha))
+      g.addColorStop(1, rgba([60, 20, 80], 0))
+      ctx.fillStyle = g
+      ctx.beginPath(); ctx.arc(px, py, p.size, 0, Math.PI * 2); ctx.fill()
+    }
+  })
+  return <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" style={{ width: '100%', height: '100%' }} />
+}
+
+// ── Crit — a white impact flash + a single sharp diagonal slash ─────────
+
+function CritFx({ x, y }: { x: number; y: number }) {
+  const angle = useRef(rand(-0.5, 0.5) + Math.PI / 4).current
+  const debris = useRef<DebrisParticle[]>()
+  if (!debris.current) {
+    debris.current = Array.from({ length: 8 }, () => ({
+      angle: rand(0, Math.PI * 2), speed: rand(60, 160), size: rand(2, 4),
+      rot: rand(0, Math.PI * 2), rotSpeed: rand(-10, 10),
+    }))
+  }
+  const canvasRef = useEffectCanvas((ctx, elapsed) => {
+    const maxLife = 550
+    if (elapsed > maxLife) return
+    const t = elapsed / maxLife
+    const len = 130
+
+    // The slash itself — draws instantly, then fades fast.
+    const slashAlpha = Math.max(0, 1 - t / 0.6)
+    const dx = Math.cos(angle) * len, dy = Math.sin(angle) * len
+    ctx.globalCompositeOperation = 'lighter'
+    ctx.strokeStyle = rgba([255, 255, 255], slashAlpha)
+    ctx.lineWidth = 5
+    ctx.lineCap = 'round'
+    ctx.shadowColor = 'rgba(255,255,255,0.9)'
+    ctx.shadowBlur = 12
+    ctx.beginPath(); ctx.moveTo(x - dx / 2, y - dy / 2); ctx.lineTo(x + dx / 2, y + dy / 2); ctx.stroke()
+    ctx.shadowBlur = 0
+
+    const sec = elapsed / 1000
+    for (const d of debris.current!) {
+      const px = x + Math.cos(d.angle) * d.speed * sec
+      const py = y + Math.sin(d.angle) * d.speed * sec
+      ctx.fillStyle = rgba([255, 255, 255], (1 - t) * 0.8)
+      ctx.save(); ctx.translate(px, py); ctx.rotate(d.rot + d.rotSpeed * sec)
+      ctx.fillRect(-d.size / 2, -d.size / 2, d.size, d.size)
+      ctx.restore()
+    }
+    ctx.globalCompositeOperation = 'source-over'
+  })
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+      <div
+        className="absolute rounded-full"
+        style={{
+          left: x - 90, top: y - 90, width: 180, height: 180,
+          background: 'radial-gradient(circle, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.3) 40%, transparent 70%)',
+          animation: 'vfx-crit-flash 260ms ease-out forwards',
         }}
       />
       <canvas ref={canvasRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />

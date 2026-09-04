@@ -18,7 +18,7 @@ function ThreadRow({
   const resolved = thread.status === 'resolved'
 
   return (
-    <div className={`group flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors ${
+    <div className={`group flex items-start gap-3 px-4 py-3 rounded-xl border transition-colors animate-fade-in-up ${
       resolved ? 'bg-surface-raised/50 border-border/60' : 'bg-surface-raised border-border hover:border-slate-600'
     }`}>
       <button

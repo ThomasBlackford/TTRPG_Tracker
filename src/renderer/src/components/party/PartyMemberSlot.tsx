@@ -24,7 +24,7 @@ export function PartyMemberSlot({
   }
 
   return (
-    <div className="bg-surface-raised border border-border rounded-xl overflow-hidden">
+    <div className="bg-surface-raised border border-border rounded-xl overflow-hidden card-hover">
       {/* Header — clicking avatar/name area opens detail modal */}
       <div className="flex items-center gap-3 px-4 py-3">
         <button

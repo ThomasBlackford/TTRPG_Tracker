@@ -1,7 +1,5 @@
 import type { MapData } from '../../types'
-
-interface ImgRect { width: number; height: number; offsetX: number; offsetY: number }
-interface Pt { x: number; y: number }
+import { toScreen, calcDistance, type ImgRect, type Pt } from '../../lib/mapMath'
 
 interface Props {
   start: Pt | null
@@ -16,26 +14,6 @@ interface Props {
   shareToPlayers: boolean
   onShareToggle: () => void
   readOnly?: boolean       // player view
-}
-
-function toScreen(pt: Pt, imgRect: ImgRect, pan: { x: number; y: number }, scale: number) {
-  return {
-    sx: imgRect.offsetX + pan.x + pt.x * imgRect.width  * scale,
-    sy: imgRect.offsetY + pan.y + pt.y * imgRect.height * scale,
-  }
-}
-
-function calcDistance(start: Pt, end: Pt, mapData: MapData, natW: number, natH: number) {
-  // start/end are normalized fractions of image width/height respectively —
-  // convert each axis back to natural image pixels using its own dimension,
-  // otherwise non-square maps get a skewed distance reading.
-  const dx = (end.x - start.x) * natW
-  const dy = (end.y - start.y) * natH
-  const pixelDist = Math.sqrt(dx * dx + dy * dy)
-  if (mapData.scale_pixels_per_unit <= 0) return null
-  const units = pixelDist / mapData.scale_pixels_per_unit
-  const feet  = units * mapData.scale_feet_per_unit
-  return { units, feet }
 }
 
 export function RulerOverlay({ start, end, liveEnd, imgRect, pan, scale, mapData, natW, natH, shareToPlayers, onShareToggle, readOnly }: Props) {

@@ -1,11 +1,13 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { ImagePlus } from 'lucide-react'
-import type { MapData, MapPin, FogState, MapTool, RulerState, SpotlightState } from '../../types'
+import type { MapData, MapPin, FogState, MapTool, RulerState, SpotlightState, ZoneMarker } from '../../types'
 import { MapPinMarker } from './MapPinMarker'
 import { FogCanvas } from './FogCanvas'
 import { RulerOverlay } from './RulerOverlay'
 import { GridOverlay } from './GridOverlay'
 import { SpotlightOverlay } from './SpotlightOverlay'
+import { ZoneOverlay } from './ZoneOverlay'
+import { VfxTargetingOverlay } from './VfxTargetingOverlay'
 
 interface ImgRect { width: number; height: number; offsetX: number; offsetY: number }
 
@@ -30,6 +32,12 @@ interface Props {
   gridVisible: boolean
   // VFX
   onPlaceEffect?: (x: number, y: number) => void
+  // Ray/zone targeting preview — set only while a ray or zone is armed and
+  // its first click has already landed (origin/center). The live second
+  // point while aiming is tracked locally (same pattern as rulerLiveEnd).
+  vfxTargeting?: { kind: 'ray' | 'zone'; first: { x: number; y: number } } | null
+  // Persistent zone markers, always visible on the DM's own map too.
+  zones?: ZoneMarker[]
   // Existing
   selectedPinId: string | null
   onAddPin: (x: number, y: number) => void
@@ -59,6 +67,7 @@ export function MapCanvas({
   spotlightPos, onSpotlightSet,
   gridVisible,
   onPlaceEffect,
+  vfxTargeting, zones,
   selectedPinId, onAddPin, onClickPin, onDragPin, onSelectPin, onUploadImage,
   onNaturalSize,
 }: Props) {
@@ -85,6 +94,12 @@ export function MapCanvas({
 
   // Ruler live-end (cursor while placing second point)
   const [rulerLiveEnd, setRulerLiveEnd] = useState<{ x: number; y: number } | null>(null)
+
+  // Ray/zone targeting live-second-point (cursor while aiming), same idea
+  // as rulerLiveEnd — reset whenever targeting starts fresh (first click)
+  // or is cancelled, tracked via the effect below.
+  const [vfxLiveHover, setVfxLiveHover] = useState<{ x: number; y: number } | null>(null)
+  useEffect(() => { setVfxLiveHover(null) }, [vfxTargeting?.first.x, vfxTargeting?.first.y])
 
   // Natural image dimensions (for ruler distance calc)
   const [natDims, setNatDims] = useState({ w: 0, h: 0 })
@@ -235,6 +250,11 @@ export function MapCanvas({
     if (activeTool === 'ruler' && rulerState.start && !rulerState.frozen) {
       const coords = toImageCoords(e.clientX, e.clientY)
       setRulerLiveEnd(coords)
+      return
+    }
+
+    if (activeTool === 'vfx' && vfxTargeting) {
+      setVfxLiveHover(toImageCoords(e.clientX, e.clientY))
       return
     }
 
@@ -403,6 +423,27 @@ export function MapCanvas({
       {/* Spotlight */}
       <SpotlightOverlay pos={spotlightPos} imgRect={imgRect} pan={pan} scale={scale} />
 
+      {/* Lingering zones — always visible on the DM's own map, regardless
+         of which tool is active, same as pins. */}
+      {imgRect.width > 0 && zones?.map((z) => (
+        <ZoneOverlay key={z.id} zone={z} imgRect={imgRect} pan={pan} scale={scale} />
+      ))}
+
+      {/* Ray/zone targeting preview */}
+      {imgRect.width > 0 && vfxTargeting && (
+        <VfxTargetingOverlay
+          kind={vfxTargeting.kind}
+          first={vfxTargeting.first}
+          hover={vfxLiveHover}
+          imgRect={imgRect}
+          pan={pan}
+          scale={scale}
+          mapData={map}
+          natW={natDims.w}
+          natH={natDims.h}
+        />
+      )}
+
       {/* Pins */}
       {imgRect.width > 0 && pins.map((pin) => {
         const { left, top } = pinScreenPos(pin)
@@ -450,9 +491,19 @@ export function MapCanvas({
           {spotlightPos ? 'Click to remove spotlight' : 'Click to place spotlight for players'}
         </div>
       )}
-      {activeTool === 'vfx' && (
+      {activeTool === 'vfx' && !vfxTargeting && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/40 rounded-full text-fuchsia-300 text-xs pointer-events-none">
           Click on the map to fire the effect
+        </div>
+      )}
+      {activeTool === 'vfx' && vfxTargeting?.kind === 'ray' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/40 rounded-full text-fuchsia-300 text-xs pointer-events-none">
+          Click the target point to fire the ray
+        </div>
+      )}
+      {activeTool === 'vfx' && vfxTargeting?.kind === 'zone' && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-fuchsia-500/20 border border-fuchsia-500/40 rounded-full text-fuchsia-300 text-xs pointer-events-none">
+          Click to set the zone's radius
         </div>
       )}
     </div>

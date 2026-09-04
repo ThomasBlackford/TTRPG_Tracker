@@ -4,7 +4,10 @@ import {
   MonitorPlay, MonitorOff, Cloud, Ruler, Crosshair, Grid,
   Settings, Image, Tv2, Sparkles
 } from 'lucide-react'
-import type { MapData, MapPin, Card, FogState, MapTool, RulerState, SpotlightState, SceneData, VfxType, AmbientVfxState } from '../types'
+import type {
+  MapData, MapPin, Card, FogState, MapTool, RulerState, SpotlightState, SceneData,
+  VfxType, AmbientVfxState, RayType, ZoneType, ZoneMarker, VfxPending
+} from '../types'
 import { VFX_POINT_TYPES, DEFAULT_AMBIENT_VFX } from '../types'
 import { MapListPanel } from '../components/maps/MapListPanel'
 import { MapCanvas } from '../components/maps/MapCanvas'
@@ -53,10 +56,20 @@ export function MapPage() {
   // Grid
   const [gridVisible, setGridVisible] = useState(false)
 
-  // VFX
-  const [pendingVfxType, setPendingVfxType] = useState<VfxType | null>(null)
-  useEffect(() => { if (activeTool !== 'vfx') setPendingVfxType(null) }, [activeTool])
+  // VFX — bursts fire on one click; rays/zones are two-click (see
+  // handleVfxClick), so `vfxPending` tracks the in-progress first point
+  // for those. Zones additionally linger until dismissed (see zones state
+  // below), unlike bursts/rays which are fire-and-forget.
+  const [vfxPending, setVfxPending] = useState<VfxPending>(null)
+  useEffect(() => { if (activeTool !== 'vfx') setVfxPending(null) }, [activeTool])
   const [ambientVfx, setAmbientVfx] = useState<AmbientVfxState>(DEFAULT_AMBIENT_VFX)
+
+  // Lingering zones — deliberately session-only (see ZoneMarker's comment
+  // in types/index.ts), reset on map switch, never persisted. `zoneCap`
+  // is a DM-adjustable ceiling on how many can be live at once; going over
+  // it evicts the oldest rather than blocking placement.
+  const [zones, setZones] = useState<ZoneMarker[]>([])
+  const [zoneCap, setZoneCap] = useState(8)
 
   // Scale modal
   const [scaleModalOpen, setScaleModalOpen] = useState(false)
@@ -94,7 +107,15 @@ export function MapPage() {
     setSpotlightPos(null)
     setSelectedPinId(null)
     setCardDetail(null)
-    if (presenting) window.api.maps.pushSpotlight(null)
+    // Zones are session-only, scoped to whatever map they were placed on —
+    // switching maps clears them rather than carrying them along or
+    // leaving them silently active somewhere the DM can no longer see.
+    setZones([])
+    setVfxPending(null)
+    if (presenting) {
+      window.api.maps.pushSpotlight(null)
+      window.api.maps.pushZones([])
+    }
   }, [currentMapId])
 
   async function loadMaps() {
@@ -225,22 +246,85 @@ export function MapPage() {
 
   // ── VFX ──────────────────────────────────────────────────────────────────
 
-  function handleVfxPick(type: VfxType) {
+  function handleBurstPick(type: VfxType) {
     if (VFX_POINT_TYPES.includes(type)) {
       // Arm placement mode — the next map click fires it at that point.
-      setPendingVfxType(type)
+      setVfxPending({ kind: 'burst', type })
     } else {
       // Screen-wide effect — fires immediately, no target needed.
       window.api.maps.pushEffect({ id: crypto.randomUUID(), type })
+      setVfxPending(null)
     }
   }
 
-  function handlePlaceEffect(x: number, y: number) {
-    if (!pendingVfxType) return
-    window.api.maps.pushEffect({ id: crypto.randomUUID(), type: pendingVfxType, x, y })
-    setPendingVfxType(null)
-    setActiveTool(null)
+  function handleRayPick(type: RayType) {
+    setVfxPending({ kind: 'ray', type, from: null })
   }
+
+  function handleZonePick(type: ZoneType) {
+    setVfxPending({ kind: 'zone', type, center: null })
+  }
+
+  // One click handler for all three VFX kinds — bursts fire on the first
+  // click, rays/zones capture the first click as origin/center and fire
+  // (or start lingering) on the second. Mirrors the Ruler's two-click state
+  // machine in MapCanvas, just decided up here instead.
+  function handleVfxClick(x: number, y: number) {
+    if (!vfxPending) return
+
+    if (vfxPending.kind === 'burst') {
+      window.api.maps.pushEffect({ id: crypto.randomUUID(), type: vfxPending.type, x, y })
+      setVfxPending(null)
+      setActiveTool(null)
+      return
+    }
+
+    if (vfxPending.kind === 'ray') {
+      if (!vfxPending.from) {
+        setVfxPending({ ...vfxPending, from: { x, y } })
+      } else {
+        window.api.maps.pushRay({ id: crypto.randomUUID(), type: vfxPending.type, from: vfxPending.from, to: { x, y } })
+        setVfxPending(null)
+        setActiveTool(null)
+      }
+      return
+    }
+
+    // zone
+    if (!vfxPending.center) {
+      setVfxPending({ ...vfxPending, center: { x, y } })
+    } else {
+      addZone({ id: crypto.randomUUID(), type: vfxPending.type, center: vfxPending.center, edge: { x, y } })
+      setVfxPending(null)
+      setActiveTool(null)
+    }
+  }
+
+  function addZone(zone: ZoneMarker) {
+    setZones((prev) => {
+      const next = [...prev, zone]
+      // Over the cap — evict the oldest rather than block placement or
+      // silently refuse the DM's click mid-combat.
+      const capped = next.length > zoneCap ? next.slice(next.length - zoneCap) : next
+      if (presenting) window.api.maps.pushZones(capped)
+      return capped
+    })
+  }
+
+  function removeZone(id: string) {
+    setZones((prev) => {
+      const next = prev.filter((z) => z.id !== id)
+      if (presenting) window.api.maps.pushZones(next)
+      return next
+    })
+  }
+
+  const vfxTargeting =
+    vfxPending?.kind === 'ray' && vfxPending.from
+      ? { kind: 'ray' as const, first: vfxPending.from }
+      : vfxPending?.kind === 'zone' && vfxPending.center
+        ? { kind: 'zone' as const, first: vfxPending.center }
+        : null
 
   function handleToggleAmbient(key: keyof AmbientVfxState) {
     const next = { ...ambientVfx, [key]: !ambientVfx[key] }
@@ -264,6 +348,8 @@ export function MapPage() {
       window.api.maps.pushGrid({ visible: gridVisible })
       // Re-sync any ambient loops (rain/storm) already toggled on
       if (ambientVfx.rain || ambientVfx.stormLightning) window.api.maps.pushAmbientVfx(ambientVfx)
+      // Re-sync any zones already lingering on this map
+      if (zones.length) window.api.maps.pushZones(zones)
     }
   }
 
@@ -666,10 +752,16 @@ export function MapPage() {
         {/* VFX sub-toolbar */}
         {activeTool === 'vfx' && (
           <VfxControls
-            pendingType={pendingVfxType}
-            onPick={handleVfxPick}
+            pending={vfxPending}
+            onPickBurst={handleBurstPick}
+            onPickRay={handleRayPick}
+            onPickZone={handleZonePick}
             ambientVfx={ambientVfx}
             onToggleAmbient={handleToggleAmbient}
+            zones={zones}
+            zoneCap={zoneCap}
+            onZoneCapChange={setZoneCap}
+            onDismissZone={removeZone}
           />
         )}
 
@@ -690,7 +782,9 @@ export function MapPage() {
               spotlightPos={spotlightPos}
               onSpotlightSet={handleSpotlightSet}
               gridVisible={gridVisible}
-              onPlaceEffect={handlePlaceEffect}
+              onPlaceEffect={handleVfxClick}
+              vfxTargeting={vfxTargeting}
+              zones={zones}
               selectedPinId={selectedPinId}
               onAddPin={handleAddPin}
               onClickPin={handleClickPin}

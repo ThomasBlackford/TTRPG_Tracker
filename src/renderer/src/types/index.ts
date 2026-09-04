@@ -145,8 +145,12 @@ export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | 'vfx' | null
 
 // Point effects need a target (x, y); screen effects (lightning, impact)
 // play across the whole presentation window and ignore x/y.
-export type VfxType = 'lightning' | 'fireball' | 'frost' | 'poison' | 'heal' | 'impact'
-export const VFX_POINT_TYPES: VfxType[] = ['fireball', 'frost', 'poison', 'heal']
+export type VfxType =
+  | 'lightning' | 'fireball' | 'frost' | 'poison' | 'heal' | 'impact'
+  | 'rage' | 'counterspell' | 'radiant' | 'necrotic' | 'crit'
+export const VFX_POINT_TYPES: VfxType[] = [
+  'fireball', 'frost', 'poison', 'heal', 'rage', 'counterspell', 'radiant', 'necrotic', 'crit'
+]
 
 export interface VfxEvent {
   id: string
@@ -162,6 +166,44 @@ export interface AmbientVfxState {
 }
 
 export const DEFAULT_AMBIENT_VFX: AmbientVfxState = { rain: false, stormLightning: false }
+
+// Rays: two-click targeting (origin, then destination), a beam drawn
+// between them that persists briefly like a point burst — session-only,
+// never saved, same as VfxEvent above.
+export type RayType = 'poison_ray' | 'ice_ray' | 'fire_ray' | 'lightning_ray'
+export const RAY_TYPES: RayType[] = ['poison_ray', 'ice_ray', 'fire_ray', 'lightning_ray']
+
+export interface RayEvent {
+  id: string
+  type: RayType
+  from: { x: number; y: number } // normalized 0-1
+  to: { x: number; y: number }
+}
+
+// Zones: two-click placement (center, then a point on the edge sets the
+// radius) — unlike bursts and rays, these linger until the DM dismisses
+// them from the Active Effects list. Deliberately NOT persisted to the
+// database: they're runtime state for the current session, cleared on
+// map switch or app restart, same as the ruler/spotlight/fog-brush-preview
+// state already is.
+//
+export type ZoneType = 'smoke' | 'hold_person' | 'fear' | 'charm' | 'sleep' | 'silence' | 'web' | 'darkness'
+export const ZONE_TYPES: ZoneType[] = ['smoke', 'hold_person', 'fear', 'charm', 'sleep', 'silence', 'web', 'darkness']
+
+export interface ZoneMarker {
+  id: string
+  type: ZoneType
+  center: { x: number; y: number } // normalized 0-1
+  edge: { x: number; y: number }   // normalized 0-1 — defines the radius
+}
+
+// The in-progress VFX placement — bursts fire on one click; rays/zones are
+// two-click, so the first point (origin/center) lives here between clicks.
+export type VfxPending =
+  | { kind: 'burst'; type: VfxType }
+  | { kind: 'ray'; type: RayType; from: { x: number; y: number } | null }
+  | { kind: 'zone'; type: ZoneType; center: { x: number; y: number } | null }
+  | null
 
 export type Page = 'library' | 'party' | 'sessions' | 'threads' | 'maps' | 'encounter' | 'timeline'
 

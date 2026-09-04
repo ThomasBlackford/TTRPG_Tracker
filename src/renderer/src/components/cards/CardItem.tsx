@@ -17,7 +17,7 @@ export function CardItem({ card, onClick, isSelected }: {
   return (
     <button
       onClick={onClick}
-      className={`group relative w-full text-left rounded-xl border transition-all duration-150 overflow-hidden
+      className={`group relative w-full text-left rounded-xl border transition-all duration-150 overflow-hidden card-hover active:scale-[0.99]
         ${isSelected
           ? 'border-amber-500/60 bg-amber-500/5 ring-1 ring-amber-500/30'
           : 'border-border bg-surface-raised hover:border-slate-600 hover:bg-surface-overlay'

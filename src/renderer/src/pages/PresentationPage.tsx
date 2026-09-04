@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import type { MapData, FogState, SpotlightState, EncounterState, SceneData, Combatant, VfxEvent, AmbientVfxState } from '../types'
+import type { MapData, FogState, SpotlightState, EncounterState, SceneData, Combatant, VfxEvent, AmbientVfxState, RayEvent, ZoneMarker } from '../types'
 import { DEFAULT_AMBIENT_VFX } from '../types'
 import { FogCanvas } from '../components/maps/FogCanvas'
 import { FogSvgFilter } from '../components/maps/FogSvgFilter'
@@ -7,6 +7,8 @@ import { GridOverlay } from '../components/maps/GridOverlay'
 import { RulerOverlay } from '../components/maps/RulerOverlay'
 import { SpotlightOverlay } from '../components/maps/SpotlightOverlay'
 import { VfxOverlay, VFX_DURATIONS } from '../components/maps/VfxOverlay'
+import { RayOverlay, RAY_DURATIONS } from '../components/maps/RayOverlay'
+import { ZoneOverlay } from '../components/maps/ZoneOverlay'
 import { RainLoop, StormLoop } from '../components/maps/AmbientVfxOverlay'
 import { ConditionBadge } from '../components/encounter/ConditionBadge'
 import { Skull } from 'lucide-react'
@@ -42,6 +44,8 @@ export function PresentationPage({ initialMapId }: Props) {
   const [handout, setHandout] = useState<{ imagePath: string } | null>(null)
   const [scene, setScene] = useState<SceneData | null>(null)
   const [effects, setEffects] = useState<VfxEvent[]>([])
+  const [rays, setRays] = useState<RayEvent[]>([])
+  const [zones, setZones] = useState<ZoneMarker[]>([])
   const [ambientVfx, setAmbientVfx] = useState<AmbientVfxState>(DEFAULT_AMBIENT_VFX)
 
   useEffect(() => { panRef.current = pan }, [pan])
@@ -125,7 +129,17 @@ export function PresentationPage({ initialMapId }: Props) {
       }, VFX_DURATIONS[evt.type])
     })
     const c10 = window.api.maps.onAmbientVfxUpdate((d) => setAmbientVfx(d as AmbientVfxState))
-    return () => { c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8(); c9(); c10() }
+    const c11 = window.api.maps.onRayUpdate((d) => {
+      const ray = d as RayEvent
+      setRays((prev) => [...prev, ray])
+      setTimeout(() => {
+        setRays((prev) => prev.filter((r) => r.id !== ray.id))
+      }, RAY_DURATIONS[ray.type])
+    })
+    // Zones always arrive as the full current list (see maps:pushZones),
+    // so this just replaces state rather than merging/diffing.
+    const c12 = window.api.maps.onZonesUpdate((d) => setZones(d as ZoneMarker[]))
+    return () => { c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8(); c9(); c10(); c11(); c12() }
   }, [])
 
   // Non-passive wheel for zoom centered on cursor
@@ -278,8 +292,16 @@ export function PresentationPage({ initialMapId }: Props) {
       {ambientVfx.rain && <RainLoop />}
       {ambientVfx.stormLightning && <StormLoop />}
 
+      {zones.map((zone) => (
+        <ZoneOverlay key={zone.id} zone={zone} imgRect={imgRect} pan={pan} scale={scale} />
+      ))}
+
       {effects.map((effect) => (
         <VfxOverlay key={effect.id} effect={effect} imgRect={imgRect} pan={pan} scale={scale} />
+      ))}
+
+      {rays.map((ray) => (
+        <RayOverlay key={ray.id} ray={ray} imgRect={imgRect} pan={pan} scale={scale} />
       ))}
 
       {map && (

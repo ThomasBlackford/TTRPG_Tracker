@@ -54,6 +54,8 @@ interface ElectronAPI {
     pushSpotlight: (data: unknown) => Promise<void>
     pushGrid: (data: unknown) => Promise<void>
     pushEffect: (data: { id: string; type: string; x?: number; y?: number }) => Promise<void>
+    pushRay: (data: unknown) => Promise<void>
+    pushZones: (data: unknown) => Promise<void>
     pushAmbientVfx: (data: { rain: boolean; stormLightning: boolean }) => Promise<void>
     openPresentation: (mapId: string) => Promise<void>
     closePresentation: () => Promise<void>
@@ -69,6 +71,8 @@ interface ElectronAPI {
     onSpotlightUpdate: (cb: (data: unknown) => void) => () => void
     onGridUpdate: (cb: (data: unknown) => void) => () => void
     onEffectUpdate: (cb: (data: { id: string; type: string; x?: number; y?: number }) => void) => () => void
+    onRayUpdate: (cb: (data: unknown) => void) => () => void
+    onZonesUpdate: (cb: (data: unknown) => void) => () => void
     onAmbientVfxUpdate: (cb: (data: { rain: boolean; stormLightning: boolean }) => void) => () => void
     onHandoutUpdate: (cb: (data: { imagePath: string } | null) => void) => () => void
     onSceneUpdate: (cb: (data: SceneData | null) => void) => () => void
