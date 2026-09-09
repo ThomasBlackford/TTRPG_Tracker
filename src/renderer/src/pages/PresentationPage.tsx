@@ -224,7 +224,7 @@ export function PresentationPage({ initialMapId }: Props) {
             />
           )}
           {(scene.title || scene.subtitle) && (
-            <div className="relative z-10 text-center px-8 py-6 rounded-xl bg-black/50 backdrop-blur-sm">
+            <div className="relative z-10 text-center px-8 py-6 rounded-xl bg-black/65">
               {scene.title && (
                 <h1 className="font-display text-4xl font-semibold text-white tracking-wide drop-shadow-lg">
                   {scene.title}
@@ -318,7 +318,7 @@ export function PresentationPage({ initialMapId }: Props) {
 
       {/* Encounter HUD */}
       {encounter?.isActive && encounter.combatants.length > 0 && (
-        <div className="absolute top-0 right-0 h-full w-56 bg-black/75 backdrop-blur-sm flex flex-col pointer-events-none select-none border-l border-white/5">
+        <div className="absolute top-0 right-0 h-full w-56 bg-black/85 flex flex-col pointer-events-none select-none border-l border-white/5">
           <div className="px-3 pt-4 pb-2 border-b border-white/10">
             <p className="font-display text-amber-400 text-lg font-semibold tracking-wide text-center">
               Round {encounter.round}
