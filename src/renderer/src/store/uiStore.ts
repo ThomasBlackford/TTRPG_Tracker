@@ -18,16 +18,10 @@ interface UIState {
   memberForm: { open: boolean; editingId: string | null }
   openMemberForm: (editingId?: string) => void
   closeMemberForm: () => void
-
-  // Set when search (or anywhere else) wants Sessions/Threads to open a
-  // specific item once it mounts, rather than just landing on the page.
-  // Read-and-clear by the page itself.
-  pendingSessionId: string | null
-  setPendingSessionId: (id: string | null) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  currentPage: 'library',
+  currentPage: 'party',
   setCurrentPage: (page) => set({ currentPage: page, selectedCard: null }),
 
   isSearchOpen: false,
@@ -44,8 +38,5 @@ export const useUIStore = create<UIState>((set) => ({
 
   memberForm: { open: false, editingId: null },
   openMemberForm: (editingId) => set({ memberForm: { open: true, editingId: editingId ?? null } }),
-  closeMemberForm: () => set({ memberForm: { open: false, editingId: null } }),
-
-  pendingSessionId: null,
-  setPendingSessionId: (id) => set({ pendingSessionId: id })
+  closeMemberForm: () => set({ memberForm: { open: false, editingId: null } })
 }))

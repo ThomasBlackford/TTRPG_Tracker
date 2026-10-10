@@ -14,6 +14,7 @@ export function SecretMessagesWidget() {
   const [replyText, setReplyText] = useState('')
   const [seenCounts, setSeenCounts] = useState<Record<string, number>>({})
   const [showAltAddresses, setShowAltAddresses] = useState(false)
+  const [replyNote, setReplyNote] = useState<string | null>(null)
 
   useEffect(() => {
     window.api.partySync.status().then(setState)
@@ -58,23 +59,16 @@ export function SecretMessagesWidget() {
     setStarting(true)
     const result = await window.api.partySync.start()
     setStarting(false)
-    setState((s) => ({
-      players: s?.players ?? [],
-      threads: s?.threads ?? [],
-      running: result.running,
-      address: result.address,
-      addresses: result.addresses
-    }))
-    if (!result.ok) alert(`Couldn't start player sync: ${result.error}`)
+    setState(result)
   }
 
   async function handleReply() {
     if (!selectedClientId || !replyText.trim()) return
     const result = await window.api.partySync.reply(selectedClientId, replyText.trim())
     setReplyText('')
-    if (!result.ok) {
-      alert(`Message saved, but couldn't deliver it live: ${result.error ?? 'player is offline'}`)
-    }
+    // Inline note instead of alert(): a native alert can leave Electron's
+    // text inputs unfocusable on Windows until the window is re-activated.
+    setReplyNote(result.ok ? null : `Saved, but couldn't deliver it live: ${result.error ?? 'player is offline'}`)
   }
 
   const unread = !open && threads.some((t) => t.messages.length > (seenCounts[t.clientId] ?? 0))
@@ -104,7 +98,9 @@ export function SecretMessagesWidget() {
 
           <div className="flex items-center justify-between px-3 py-2 border-b border-border flex-shrink-0 text-[11px]">
             <span className={state?.running ? 'text-emerald-400' : 'text-slate-600'}>
-              {state?.running ? `Running · ${state.address}` : 'Sync not running'}
+              {state?.running
+                ? `Running · ${state.address}${state.requireCode ? ` · code ${state.joinCode}` : ''}`
+                : 'Sync not running'}
             </span>
             <div className="flex items-center gap-2">
               {state?.running && state.address && (
@@ -129,6 +125,12 @@ export function SecretMessagesWidget() {
               </button>
             </div>
           </div>
+
+          {state?.error && (
+            <p className="px-3 py-2 border-b border-border flex-shrink-0 text-[11px] text-red-400 leading-relaxed">
+              Couldn't start player sync: {state.error}
+            </p>
+          )}
 
           {/* This machine can have more than one network adapter (WiFi + a
              VPN, Ethernet + WiFi, etc.) — the address above is just the best
@@ -200,6 +202,7 @@ export function SecretMessagesWidget() {
                 ))}
               </div>
 
+              {replyNote && <p className="px-3 pb-1 text-[11px] text-amber-300 leading-relaxed">{replyNote}</p>}
               <div className="flex items-center gap-1.5 p-2.5 border-t border-border flex-shrink-0">
                 <input
                   className="input text-xs py-1.5"

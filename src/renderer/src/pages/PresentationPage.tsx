@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
-import type { MapData, FogState, SpotlightState, EncounterState, SceneData, Combatant, VfxEvent, AmbientVfxState, RayEvent, ZoneMarker } from '../types'
+import type { MapData, FogState, SpotlightState, EncounterState, SceneData, Combatant, VfxEvent, AmbientVfxState, RayEvent, ZoneMarker, MapToken } from '../types'
 import { DEFAULT_AMBIENT_VFX } from '../types'
 import { FogCanvas } from '../components/maps/FogCanvas'
 import { FogSvgFilter } from '../components/maps/FogSvgFilter'
@@ -9,6 +9,7 @@ import { SpotlightOverlay } from '../components/maps/SpotlightOverlay'
 import { VfxOverlay, VFX_DURATIONS } from '../components/maps/VfxOverlay'
 import { RayOverlay, RAY_DURATIONS } from '../components/maps/RayOverlay'
 import { ZoneOverlay } from '../components/maps/ZoneOverlay'
+import { TokenMarker, tokenDiameter } from '../components/maps/TokenMarker'
 import { RainLoop, StormLoop } from '../components/maps/AmbientVfxOverlay'
 import { ConditionBadge } from '../components/encounter/ConditionBadge'
 import { Skull } from 'lucide-react'
@@ -46,6 +47,7 @@ export function PresentationPage({ initialMapId }: Props) {
   const [effects, setEffects] = useState<VfxEvent[]>([])
   const [rays, setRays] = useState<RayEvent[]>([])
   const [zones, setZones] = useState<ZoneMarker[]>([])
+  const [tokens, setTokens] = useState<MapToken[]>([])
   const [ambientVfx, setAmbientVfx] = useState<AmbientVfxState>(DEFAULT_AMBIENT_VFX)
 
   useEffect(() => { panRef.current = pan }, [pan])
@@ -139,7 +141,9 @@ export function PresentationPage({ initialMapId }: Props) {
     // Zones always arrive as the full current list (see maps:pushZones),
     // so this just replaces state rather than merging/diffing.
     const c12 = window.api.maps.onZonesUpdate((d) => setZones(d as ZoneMarker[]))
-    return () => { c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8(); c9(); c10(); c11(); c12() }
+    // Tokens arrive as the full visible list for a map (hidden ones already stripped by the DM's app).
+    const c13 = window.api.tokens.onUpdate((d) => setTokens(d.tokens))
+    return () => { c1(); c2(); c3(); c4(); c5(); c6(); c7(); c8(); c9(); c10(); c11(); c12(); c13() }
   }, [])
 
   // Non-passive wheel for zoom centered on cursor
@@ -296,6 +300,24 @@ export function PresentationPage({ initialMapId }: Props) {
         <ZoneOverlay key={zone.id} zone={zone} imgRect={imgRect} pan={pan} scale={scale} />
       ))}
 
+      {map && tokens.filter((t) => t.map_id === map.id).map((t) => {
+        const cid = t.combatant_id
+        const idx = cid && encounter?.isActive ? encounter.combatants.findIndex((c) => c.id === cid) : -1
+        const combatant = idx >= 0 ? encounter!.combatants[idx] : null
+        return (
+          <TokenMarker
+            key={t.id}
+            token={t}
+            left={imgRect.offsetX + pan.x + t.x * imgRect.width * scale}
+            top={imgRect.offsetY + pan.y + t.y * imgRect.height * scale}
+            diameter={tokenDiameter(t, map, imgRect, natDims.w, scale)}
+            isCurrent={idx >= 0 && idx === encounter!.currentIndex}
+            rank={idx >= 0 ? idx + 1 : null}
+            down={!!combatant && combatant.hp_current != null && combatant.hp_current <= 0}
+          />
+        )
+      })}
+
       {effects.map((effect) => (
         <VfxOverlay key={effect.id} effect={effect} imgRect={imgRect} pan={pan} scale={scale} />
       ))}
@@ -337,7 +359,7 @@ export function PresentationPage({ initialMapId }: Props) {
                 >
                   <div
                     className={`w-5 h-5 flex-shrink-0 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 ${
-                      isCurrent ? 'bg-amber-500 text-black' : 'bg-white/10 text-white/40'
+                      isCurrent ? 'bg-amber-500 text-white' : 'bg-white/10 text-white/40'
                     }`}
                   >
                     {i + 1}

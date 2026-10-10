@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { confirmAsync } from '../lib/confirm'
 import { Plus, Edit, Trash2, X, Check, Link, CalendarDays } from 'lucide-react'
 import type { TimelineEvent, Card, CardType } from '../types'
 import { CardSearchPicker } from '../components/cards/CardSearchPicker'
@@ -234,7 +235,7 @@ export function TimelinePage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Delete this event?')) return
+    if (!(await confirmAsync({ title: 'Delete this event?', confirmLabel: 'Delete', danger: true }))) return
     await window.api.timeline.delete(id)
     setEvents(prev => prev.filter(e => e.id !== id))
   }

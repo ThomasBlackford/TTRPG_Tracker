@@ -5,14 +5,14 @@ import { initDb } from './db'
 import { setMainWin, getMainWin } from './mainWindow'
 import { registerCardHandlers } from './ipc/cards'
 import { registerPartyHandlers } from './ipc/party'
-import { registerSessionHandlers } from './ipc/sessions'
 import { registerSearchHandlers } from './ipc/search'
 import { registerMapHandlers } from './ipc/maps'
+import { registerTokenHandlers } from './ipc/tokens'
 import { registerEncounterHandlers } from './ipc/encounter'
 import { registerTimelineHandlers } from './ipc/timeline'
 import { registerPartySyncHandlers } from './ipc/partySync'
-import { registerThreadHandlers } from './ipc/threads'
 import { registerUpdaterHandlers } from './ipc/updater'
+import { registerBackupHandlers, runAutoBackup } from './ipc/backup'
 import { stopServer } from './server'
 import { initAutoUpdater } from './updater'
 
@@ -25,7 +25,7 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     titleBarStyle: 'hiddenInset',
-    backgroundColor: '#0d1117',
+    backgroundColor: '#040102',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -89,14 +89,15 @@ if (!gotLock) {
 
     registerCardHandlers()
     registerPartyHandlers()
-    registerSessionHandlers()
     registerSearchHandlers()
     registerMapHandlers()
+    registerTokenHandlers()
     registerEncounterHandlers()
     registerTimelineHandlers()
     registerPartySyncHandlers()
-    registerThreadHandlers()
     registerUpdaterHandlers()
+    registerBackupHandlers()
+    void runAutoBackup()
 
     createWindow()
 

@@ -48,7 +48,7 @@ export function CardSearchPicker({
     if (!query.trim()) { setResults([]); return }
     const q = query.trim()
     window.api.search.query(q).then((hits) => {
-      let filtered = hits as Card[]
+      let filtered = hits as unknown as Card[]
       if (filterType) filtered = filtered.filter(c => c.type === filterType)
       if (excludeId)  filtered = filtered.filter(c => c.id !== excludeId)
       filtered = filtered.filter(c => !selectedIds.includes(c.id))

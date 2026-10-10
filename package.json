@@ -1,6 +1,6 @@
 {
   "name": "lorekeeper",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "TTRPG campaign manager for Dungeon Masters",
   "main": "out/main/index.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "preview": "electron-vite preview",
     "dist": "electron-vite build && electron-builder --win",
     "postinstall": "electron-builder install-app-deps",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "test": "node tests/run.mjs"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",

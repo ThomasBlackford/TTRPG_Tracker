@@ -1,50 +1,60 @@
 # LoreKeeper
 
-> A desktop campaign manager built for Dungeon Masters who have outgrown their Google Docs.
+> A desktop toolkit for running a tabletop game live — for the Dungeon Master, and for every player at the table.
+
+LoreKeeper is two apps that talk to each other over your home WiFi:
+
+- **LoreKeeper** (this repo's root) — the DM's app: party, encounters, maps, handouts, and a library of campaign entities.
+- **LoreKeeper Companion** (`player-client/`, also published as its own repo) — each player's character sheet, with dice, spellcasting and a live link to the DM.
+
+Both are local-first: no accounts, no cloud, and everything lives in a SQLite file on your own PC.
 
 ---
 
-## The Problem
+## For the DM
 
-If you have ever run a tabletop campaign, you know how fast things get out of hand. What starts as a few notes about some NPCs and a small map turns into dozens of characters in competing factions, reputation scores that shift with every player decision, and a world shaped by months of in-session choices. Most Dungeon Masters end up managing all of this across a graveyard of Google Docs, Notion pages, and handwritten notes that made sense at the time — until they don't.
+### Table control
+Start **Player Sync** on the Party page and players connect with the address and a four-character **join code** (on by default, so nobody else on the WiFi can join). From then on you can:
 
-The patchwork works until it no longer does, and it usually falls apart at the worst moment: a player asks about a chain of events from three sessions ago and the whole table waits while you dig through your files.
+- watch each player's HP, AC, conditions, spell slots, concentration and death saves live — dropped players stay on the roster, greyed out
+- **push to a player's sheet**: damage, healing, conditions, XP, coins, items, inspiration, rests
+- **request rolls** ("Dexterity save, DC 14") — every player gets a prompt with their own modifier already worked out, and results come back to a roll log marked pass/fail
+- **send handouts** (text and an image) straight to their screens
+- rest easy about privacy: the players' own party chat never passes through the DM's app
 
-**LoreKeeper is one place to run your entire campaign.** Type what you're looking for and it's there. No folders, no tabs, no digging.
+### Encounters
+- Built-in bestiary of common SRD creatures plus your own saved monsters; add several at once (numbered "Goblin 1…4") and roll initiative per creature or once per pack
+- Damage and healing, with ½ / ×2 toggles for resistance, vulnerability and crits — applied directly on a connected player's own sheet
+- Timed effects that count down at the end of the affected creature's turn ("Hold Person — 3 rounds"), conditions, and concentration (taking damage prompts the save and its DC)
+- Live difficulty rating from the DMG XP budget, and one-click XP awards split between connected players
+- Players are pinged when it's their turn and when they're up next
 
----
+### Maps
+- Fog of war, ruler, grid, spotlight and a large library of animated effects for the player-facing display
+- **Creature tokens** that follow the initiative order (the current turn glows), drag to move, hide to stage an ambush, one click to place the whole encounter
 
-## Features
+### Library & timeline
+Cards for NPCs, items, locations, lore and factions (full-text search with `Ctrl+K`), per-member faction reputation, and a campaign timeline. Cards and images can be pushed to the player display as scenes and handouts.
 
-### Card Library
-Build and search a full library of campaign entities. Every entry is a card:
-
-| Type | What it tracks |
-|---|---|
-| **NPC** | Race, role, faction affiliation, status, voice/mannerism notes |
-| **Item** | Rarity, value, attunement, current holder |
-| **Location** | Region, type, climate/feel |
-| **Lore** | Category, era, source |
-| **Faction** | Alignment, goal, leader, headquarters |
-
-Each card supports a freeform description, custom tags, an optional image, and a **public/DM-only toggle** for the player view.
-
-### Global Search
-Press `Ctrl+K` (or `Cmd+K`) anywhere in the app to open a full-text search overlay. Results are returned instantly from a local SQLite FTS5 index and grouped by type — pull up any NPC, location, or lore entry mid-session without navigating anywhere.
-
-### Party Panel
-A dedicated panel for tracking your players:
-
-- **Custom resources** — define any resource your system uses (HP, AC, Spell Slots, Bardic Inspiration, Gold) with a current/max bar and a color
-- **Initiative tracker** — enter initiative values per character; the app auto-sorts them into a combat order strip that appears when combat begins
-- **Faction reputation** — for every Faction card in your library, each party member has a reputation bar from 0 to 100 (Hostile → Unfriendly → Neutral → Friendly → Revered), adjustable with a single click
-
-### Session Log
-A chronological record of every session. Each entry captures the session number, date, title, and freeform notes. Everything stays local — no cloud, no account.
+### Backup & restore
+**Settings → Back up now** writes the whole campaign — data and every image — to one `.lkbackup` file, and **Restore** brings it back on any PC. A daily snapshot is also taken automatically (the last ten are kept).
 
 ---
 
-## Tech Stack
+## For players
+
+- Full character sheet: abilities, skills with proficiency/expertise, saves, spell slots, spell attack/DC, actions, inventory with encumbrance, languages, background, portrait
+- **Play** tab: everything you need mid-fight on one screen; click anything for its full description
+- **Dice**: tap-to-roll attacks and damage (natural 20 auto-doubles the dice), advantage/disadvantage, a free dice tray with history
+- **Cast** button on every spell: spends the right slot (including upcasting), handles concentration, and offers the attack/damage roll
+- Concentration checks come up by themselves when you take damage
+- Built-in library of SRD spells, weapons, armor and gear to add from instead of typing
+- XP tracking with a level-up button; platinum, gold, electrum, silver and copper
+- Back up or move your character to another PC from Settings
+
+---
+
+## Tech stack
 
 | Layer | Technology |
 |---|---|
@@ -53,109 +63,57 @@ A chronological record of every session. Each entry captures the session number,
 | UI | [React](https://react.dev/) + [TypeScript](https://www.typescriptlang.org/) |
 | Styling | [Tailwind CSS](https://tailwindcss.com/) |
 | Database | [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (embedded SQLite) |
-| State | [Zustand](https://zustand-demo.pmnd.rs/) |
-| Icons | [Lucide React](https://lucide.dev/) |
-
-All data is stored locally in a SQLite database at your OS user-data path. No internet connection required at runtime.
+| Sync | [ws](https://github.com/websockets/ws) over the LAN |
+| Updates | [electron-updater](https://www.electron.build/auto-update) via GitHub releases |
 
 ---
 
-## Getting Started
+## Getting started
 
-### Prerequisites
-
-- [Node.js](https://nodejs.org/) v18 or higher
-- npm v9 or higher
-
-### Install & Run
+Requires [Node.js](https://nodejs.org/) 18+.
 
 ```bash
-git clone https://github.com/your-username/lorekeeper.git
-cd lorekeeper
+git clone https://github.com/ThomasBlackford/TTRPG_Tracker.git
+cd TTRPG_Tracker
 npm install
-npm run dev
+npm run dev          # the DM app
+cd player-client && npm install && npm run dev   # the player app
 ```
 
-`npm install` will automatically rebuild the native `better-sqlite3` binary for your platform and Electron version via `electron-builder install-app-deps`.
-
-### Build for Production
+`npm install` rebuilds the native `better-sqlite3` binary for Electron automatically.
 
 ```bash
-npm run build
+npm run typecheck    # both TypeScript projects
+npm test             # unit + integration tests (see below)
+npm run dist         # build the Windows installer into dist/
 ```
 
-Outputs a platform-native installer to `dist/`.
+### Tests
+
+`npm test` runs, with Node's built-in test runner:
+
+- dice parsing/rolling, XP tables, and the encounter difficulty maths
+- the backup container (round-trip, truncation, hostile file names)
+- the **real DM server against the real player sync client** — join codes, DM commands, roll results, reconnects, junk frames, a busy port
+- the real IPC handlers and SQLite migrations, run inside Electron's own Node runtime (the native database module is built for Electron)
 
 ---
 
-## Architecture Overview
+## Layout
 
 ```
-src/
-├── main/           # Electron main process (Node.js)
-│   ├── db/         # SQLite schema + initialization
-│   └── ipc/        # IPC handlers: cards, party, sessions, search
-├── preload/        # Context bridge — typed window.api surface
-└── renderer/       # React frontend
-    └── src/
-        ├── components/
-        │   ├── cards/      # CardItem, CardDetail, CardForm
-        │   ├── party/      # Member slots, resources, initiative, rep bars
-        │   ├── sessions/   # Session log entry form
-        │   └── layout/     # Sidebar, global search overlay
-        ├── pages/          # LibraryPage, PartyPage, SessionsPage
-        ├── store/          # Zustand stores (ui, search)
-        └── types/          # Shared TypeScript types + Electron API declarations
+src/                      DM app
+├── main/                 Electron main process
+│   ├── db/               schema + migrations
+│   ├── ipc/              handlers: cards, party, encounter, maps, tokens, sync, backup…
+│   └── server/           the LAN sync server (join code, commands, roster)
+├── preload/              typed contextBridge API
+└── renderer/             React UI
+player-client/            player app (same structure; mirrored to its own repo)
+tests/                    unit + integration tests, and stubs for Electron
 ```
 
-The main and renderer processes communicate exclusively through a typed IPC bridge defined in `src/preload/index.ts` and declared in `src/renderer/src/types/electron.d.ts`. The renderer never has direct access to Node.js APIs.
-
----
-
-## Technical Highlights
-
-A breakdown of the design decisions and skills demonstrated in this project:
-
-**Electron + IPC architecture** — The app follows strict process separation. All file system access, database queries, and OS dialog calls live in the main process. The renderer communicates through a narrow, typed `contextBridge` API, keeping the renderer sandboxed.
-
-**Embedded SQLite with FTS5** — Rather than a remote database or JSON files, the app uses `better-sqlite3` for a zero-config embedded database. Full-text search is powered by a SQLite FTS5 virtual table with trigger-based sync, enabling sub-millisecond search across the entire campaign library.
-
-**Polymorphic card model** — All content types (NPC, Item, Location, Lore, Faction) share a single `cards` table. Type-specific data is stored in a JSON `fields` column, avoiding schema sprawl while keeping queries simple and fast.
-
-**TypeScript throughout** — Both the main process (Node.js) and renderer (React) are fully typed. The shared type system means the IPC contract is enforced at compile time — if a handler's return shape changes, the renderer's usage breaks at typecheck, not at runtime.
-
-**Tailwind CSS dark theme** — The UI uses a custom Tailwind config with semantic color tokens (`surface-base`, `surface-raised`, `surface-overlay`, `accent`) rather than hardcoded hex values, making the design system easy to extend or re-theme.
-
-**Component-driven UI** — The interface is broken into small, single-responsibility components. Data fetching lives in page-level components; presentational components receive only what they render. State that crosses the component tree (current page, search modal, selected card) lives in Zustand stores.
-
----
-
-## Roadmap
-
-- [ ] Player view — second window showing only public cards
-- [ ] Image drag-and-drop
-- [ ] Campaign switcher (multiple campaigns in one app)
-- [ ] Session note linking to cards
-- [ ] Export to PDF / markdown
-- [ ] Map view for locations
-- [ ] Dice roller
-
----
-
-## Contributing
-
-Contributions are welcome. Open an issue to discuss a feature or bug before submitting a PR.
-
-```bash
-# Run in dev mode
-npm run dev
-
-# Typecheck
-npm run typecheck
-
-# Build
-npm run build
-```
+The renderer never touches Node: everything goes through the typed IPC surface in `src/preload/index.ts`, declared in `src/renderer/src/types/electron.d.ts`.
 
 ---
 

@@ -33,7 +33,7 @@ function rgba([r, g, b]: RGB, a: number) {
 const GROW_MS = 160
 
 function useRayCanvas(
-  x1: number, y1: number, x2: number, y2: number, durationMs: number,
+  durationMs: number,
   draw: (ctx: CanvasRenderingContext2D, elapsed: number, beamT: number, growT: number) => void
 ) {
   return useEffectCanvas((ctx, elapsed) => {
@@ -58,7 +58,7 @@ function PoisonRayFx({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y
       t0: rand(0, 0.9), offset: rand(-6, 6), size: rand(2, 5), drift: rand(-10, 10),
     }))
   }
-  const canvasRef = useRayCanvas(x1, y1, x2, y2, RAY_DURATIONS.poison_ray, (ctx, elapsed, beamT, growT) => {
+  const canvasRef = useRayCanvas(RAY_DURATIONS.poison_ray, (ctx, elapsed, beamT, growT) => {
     const alpha = beamAlpha(beamT)
     const ex = x1 + (x2 - x1) * growT
     const ey = y1 + (y2 - y1) * growT
@@ -106,7 +106,7 @@ function IceRayFx({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2: 
       t0: rand(0, 0.85), offset: rand(-9, 9), size: rand(1.5, 3.5), phase: rand(0, Math.PI * 2),
     }))
   }
-  const canvasRef = useRayCanvas(x1, y1, x2, y2, RAY_DURATIONS.ice_ray, (ctx, elapsed, beamT, growT) => {
+  const canvasRef = useRayCanvas(RAY_DURATIONS.ice_ray, (ctx, elapsed, beamT, growT) => {
     const alpha = beamAlpha(beamT)
     const ex = x1 + (x2 - x1) * growT
     const ey = y1 + (y2 - y1) * growT
@@ -156,7 +156,7 @@ function FireRayFx({ x1, y1, x2, y2 }: { x1: number; y1: number; x2: number; y2:
       t0: rand(0, 0.9), offset: rand(-5, 5), size: rand(4, 9), phase: rand(0, Math.PI * 2),
     }))
   }
-  const canvasRef = useRayCanvas(x1, y1, x2, y2, RAY_DURATIONS.fire_ray, (ctx, elapsed, beamT, growT) => {
+  const canvasRef = useRayCanvas(RAY_DURATIONS.fire_ray, (ctx, elapsed, beamT, growT) => {
     const alpha = beamAlpha(beamT)
     const ex = x1 + (x2 - x1) * growT
     const ey = y1 + (y2 - y1) * growT

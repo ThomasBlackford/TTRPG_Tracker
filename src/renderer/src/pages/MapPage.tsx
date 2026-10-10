@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { confirmAsync } from '../lib/confirm'
 import {
   Pin, ChevronRight, ImagePlus, Pencil, Check, X as XIcon,
   MonitorPlay, MonitorOff, Cloud, Ruler, Crosshair, Grid,
-  Settings, Image, Tv2, Sparkles
+  Settings, Image, Tv2, Sparkles, CircleUser
 } from 'lucide-react'
 import type {
   MapData, MapPin, Card, FogState, MapTool, RulerState, SpotlightState, SceneData,
-  VfxType, AmbientVfxState, RayType, ZoneType, ZoneMarker, VfxPending
+  VfxType, AmbientVfxState, RayType, ZoneType, ZoneMarker, VfxPending, MapToken, EncounterState
 } from '../types'
 import { VFX_POINT_TYPES, DEFAULT_AMBIENT_VFX } from '../types'
 import { MapListPanel } from '../components/maps/MapListPanel'
@@ -17,6 +18,7 @@ import { FogControls } from '../components/maps/FogControls'
 import { RulerControls } from '../components/maps/RulerControls'
 import { VfxControls } from '../components/maps/VfxControls'
 import { ScaleConfigModal } from '../components/maps/ScaleConfigModal'
+import { TokenControls } from '../components/maps/TokenControls'
 import { useMapPresentStore } from '../store/mapPresentStore'
 
 const DEFAULT_RULER: RulerState = { start: null, end: null, frozen: false, shareToPlayers: false }
@@ -41,6 +43,12 @@ export function MapPage() {
 
   // Tools
   const [activeTool, setActiveTool] = useState<MapTool>(null)
+
+  // Creature tokens — persisted per map, and tied to the live encounter so
+  // the token whose turn it is glows and carries its initiative position.
+  const [tokens, setTokens] = useState<MapToken[]>([])
+  const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null)
+  const [encounter, setEncounter] = useState<EncounterState | null>(null)
 
   // Fog
   const [fog, setFog]               = useState<FogState | null>(null)
@@ -87,6 +95,11 @@ export function MapPage() {
 
   useEffect(() => { loadMaps() }, [])
 
+  useEffect(() => {
+    window.api.encounter.getState().then(setEncounter)
+    return window.api.encounter.onUpdate((s) => setEncounter(s))
+  }, [])
+
   // Track handout state from the actual push channel — not just this page's
   // own "Push to TV" button — since a handout can also be triggered from a
   // card in the Library. This is what drives the "Clear Handout" control.
@@ -99,10 +112,13 @@ export function MapPage() {
     if (currentMapId) {
       loadPins(currentMapId)
       loadFog(currentMapId)
+      window.api.tokens.list(currentMapId).then(setTokens)
     } else {
       setPins([])
       setFog(null)
+      setTokens([])
     }
+    setSelectedTokenId(null)
     setRulerState(DEFAULT_RULER)
     setSpotlightPos(null)
     setSelectedPinId(null)
@@ -115,6 +131,7 @@ export function MapPage() {
     if (presenting) {
       window.api.maps.pushSpotlight(null)
       window.api.maps.pushZones([])
+      if (currentMapId) window.api.tokens.push(currentMapId)
     }
   }, [currentMapId])
 
@@ -350,7 +367,46 @@ export function MapPage() {
       if (ambientVfx.rain || ambientVfx.stormLightning) window.api.maps.pushAmbientVfx(ambientVfx)
       // Re-sync any zones already lingering on this map
       if (zones.length) window.api.maps.pushZones(zones)
+      window.api.tokens.push(currentMapId)
     }
+  }
+
+  // ── Tokens ───────────────────────────────────────────────────────────────
+
+  async function handleMoveToken(id: string, x: number, y: number) {
+    if (!currentMapId) return
+    // Optimistic: the token stays where it was dropped while the save round-trips.
+    setTokens((prev) => prev.map((t) => (t.id === id ? { ...t, x, y } : t)))
+    await window.api.tokens.save({ id, map_id: currentMapId, x, y })
+  }
+
+  async function handleAddToken(name: string, kind: 'party' | 'monster' | 'npc', size: number) {
+    if (!currentMapId) return
+    const color = kind === 'party' ? '#3b82f6' : kind === 'npc' ? '#d4a017' : '#a3142a'
+    setTokens(await window.api.tokens.save({ map_id: currentMapId, name, kind, size, color, x: 0.5, y: 0.5 }))
+  }
+
+  async function handleUpdateToken(id: string, changes: Partial<MapToken>) {
+    if (!currentMapId) return
+    setTokens(await window.api.tokens.save({ ...changes, id, map_id: currentMapId }))
+  }
+
+  async function handleDeleteToken(id: string) {
+    setSelectedTokenId(null)
+    setTokens(await window.api.tokens.delete(id))
+  }
+
+  async function handlePlaceCombatants() {
+    if (!currentMapId) return
+    setTokens(await window.api.tokens.placeCombatants(currentMapId))
+  }
+
+  const tokenInfo = {
+    currentCombatantId: encounter?.isActive ? encounter.combatants[encounter.currentIndex]?.id ?? null : null,
+    rankByCombatant: Object.fromEntries((encounter?.isActive ? encounter.combatants : []).map((c, i) => [c.id, i + 1])),
+    downCombatantIds: (encounter?.isActive ? encounter.combatants : [])
+      .filter((c) => c.hp_current != null && c.hp_current <= 0)
+      .map((c) => c.id)
   }
 
   // ── Navigation ───────────────────────────────────────────────────────────
@@ -391,7 +447,7 @@ export function MapPage() {
   }
 
   async function handleDeleteMap(id: string) {
-    if (!confirm('Delete this map and all its pins?')) return
+    if (!(await confirmAsync({ title: 'Delete this map?', message: 'All of its pins go with it.', confirmLabel: 'Delete', danger: true }))) return
     await window.api.maps.delete(id)
     setMaps(prev => prev.filter(m => m.id !== id))
     if (currentMapId === id) {
@@ -711,6 +767,7 @@ export function MapPage() {
             )}
             {currentMap && toolBtn('spotlight', <Crosshair size={13} />, 'Spotlight', 'bg-yellow-500/20 border-yellow-500/40 text-yellow-300')}
             {currentMap && toolBtn('vfx', <Sparkles size={13} />, 'Effects', 'bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300')}
+            {currentMap && toolBtn('tokens', <CircleUser size={13} />, 'Tokens', 'bg-sky-500/20 border-sky-500/40 text-sky-300')}
             {currentMap && toolBtn('pin', <Pin size={13} />, 'Add Pin', 'bg-amber-500/20 border-amber-500/40 text-amber-300')}
             {currentMap && (
               <button
@@ -746,6 +803,20 @@ export function MapPage() {
           <RulerControls
             shareToPlayers={rulerState.shareToPlayers}
             onShareToggle={() => handleRulerChange({ shareToPlayers: !rulerState.shareToPlayers })}
+          />
+        )}
+
+        {/* Tokens sub-toolbar */}
+        {activeTool === 'tokens' && (
+          <TokenControls
+            tokens={tokens}
+            selectedId={selectedTokenId}
+            encounterActive={!!encounter?.isActive}
+            onPlaceCombatants={handlePlaceCombatants}
+            onAdd={handleAddToken}
+            onSelect={setSelectedTokenId}
+            onUpdate={handleUpdateToken}
+            onDelete={handleDeleteToken}
           />
         )}
 
@@ -785,6 +856,11 @@ export function MapPage() {
               onPlaceEffect={handleVfxClick}
               vfxTargeting={vfxTargeting}
               zones={zones}
+              tokens={tokens}
+              tokenInfo={tokenInfo}
+              selectedTokenId={selectedTokenId}
+              onMoveToken={handleMoveToken}
+              onSelectToken={setSelectedTokenId}
               selectedPinId={selectedPinId}
               onAddPin={handleAddPin}
               onClickPin={handleClickPin}

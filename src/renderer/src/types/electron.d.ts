@@ -1,4 +1,4 @@
-import type { Card, CardType, PartyMember, Resource, Reputation, SessionNote, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState, Thread } from './index'
+import type { Card, CardType, PartyMember, Resource, Reputation, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState, MonsterTemplate, MapToken, DmCommand } from './index'
 
 interface ElectronAPI {
   cards: {
@@ -22,18 +22,6 @@ interface ElectronAPI {
     updateResources: (id: string, resources: Resource[]) => Promise<void>
     getReputation: (memberId: string) => Promise<Reputation[]>
     setReputation: (memberId: string, factionId: string, score: number) => Promise<void>
-  }
-  sessions: {
-    list: () => Promise<SessionNote[]>
-    get: (id: string) => Promise<SessionNote | null>
-    save: (note: Partial<SessionNote> & { title: string }) => Promise<SessionNote>
-    delete: (id: string) => Promise<void>
-  }
-  threads: {
-    list: () => Promise<Thread[]>
-    create: (data: { text: string; linked_card_id?: string | null; linked_member_id?: string | null }) => Promise<Thread>
-    update: (id: string, changes: Partial<Pick<Thread, 'text' | 'status' | 'linked_card_id' | 'linked_member_id'>>) => Promise<Thread | null>
-    delete: (id: string) => Promise<void>
   }
   search: {
     query: (q: string) => Promise<SearchResult[]>
@@ -81,20 +69,56 @@ interface ElectronAPI {
     getState: () => Promise<EncounterState>
     start: () => Promise<EncounterState>
     end: () => Promise<EncounterState>
-    addMonster: (data: { name: string; hp_max?: number; ac?: number; initiative?: number }) => Promise<EncounterState>
+    addMonster: (data: {
+      name: string; hp_max?: number; ac?: number; initiative?: number; init_mod?: number; xp?: number
+      count?: number; rollInitiative?: boolean; grouped?: boolean
+    }) => Promise<EncounterState>
+    applyHp: (id: string, amount: number, mode?: 'normal' | 'half' | 'double') => Promise<EncounterState>
+    rollMonsterInitiative: (opts: { force?: boolean; grouped?: boolean }) => Promise<EncounterState>
     addPartyMember: (memberId: string) => Promise<EncounterState>
-    updateCombatant: (id: string, changes: Partial<Pick<Combatant, 'hp_current' | 'conditions' | 'initiative' | 'name' | 'ac'>>) => Promise<EncounterState>
+    updateCombatant: (id: string, changes: Partial<Pick<Combatant, 'hp_current' | 'hp_max' | 'conditions' | 'effects' | 'concentrating' | 'initiative' | 'init_mod' | 'xp' | 'name' | 'ac'>>) => Promise<EncounterState>
     removeCombatant: (id: string) => Promise<EncounterState>
     nextTurn: () => Promise<EncounterState>
     prevTurn: () => Promise<EncounterState>
     onUpdate: (cb: (state: EncounterState | null) => void) => () => void
   }
+  monsters: {
+    list: () => Promise<MonsterTemplate[]>
+    save: (m: Partial<MonsterTemplate> & { name: string }) => Promise<MonsterTemplate>
+    delete: (id: string) => Promise<void>
+  }
+  tokens: {
+    list: (mapId: string) => Promise<MapToken[]>
+    save: (token: Partial<MapToken> & { map_id: string }) => Promise<MapToken[]>
+    delete: (id: string) => Promise<MapToken[]>
+    placeCombatants: (mapId: string) => Promise<MapToken[]>
+    push: (mapId: string) => Promise<void>
+    onUpdate: (cb: (data: { mapId: string; tokens: MapToken[] }) => void) => () => void
+  }
+  backup: {
+    export: () => Promise<{ ok: boolean; canceled?: boolean; error?: string; path?: string; files?: number }>
+    import: () => Promise<{ ok: boolean; canceled?: boolean; error?: string }>
+    info: () => Promise<{ dir: string; autos: { name: string; size: number; modified: number }[] }>
+    openFolder: () => Promise<void>
+  }
   partySync: {
-    start: () => Promise<{ ok: boolean; error?: string; running: boolean; address: string | null; addresses: string[] }>
+    command: (clientId: string, command: DmCommand) => Promise<{ ok: boolean; id?: string; error?: string }>
+    broadcast: (command: DmCommand, clientIds?: string[]) => Promise<{ sent: number }>
+    handout: (
+      clientIds: string[] | null,
+      data: { title: string; text: string; imagePath?: string | null }
+    ) => Promise<{ sent: number; error?: string }>
+    setRequireCode: (on: boolean) => Promise<PartySyncState>
+    regenerateCode: () => Promise<PartySyncState>
+    clearRolls: () => Promise<void>
+    start: () => Promise<PartySyncState & { ok: boolean }>
     stop: () => Promise<{ running: boolean }>
     status: () => Promise<PartySyncState>
     reply: (clientId: string, text: string) => Promise<{ ok: boolean; error?: string }>
     onUpdate: (cb: (state: PartySyncState) => void) => () => void
+  }
+  app: {
+    version: () => Promise<string>
   }
   updater: {
     status: () => Promise<{ ready: boolean }>

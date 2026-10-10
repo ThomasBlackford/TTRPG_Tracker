@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { confirmAsync } from '../lib/confirm'
 import { Swords } from 'lucide-react'
 import type { PartyMember } from '../types'
 import { useUIStore } from '../store/uiStore'
@@ -33,7 +34,7 @@ export function PartyPage() {
   }
 
   async function handleDelete(id: string) {
-    if (!confirm('Remove this party member?')) return
+    if (!(await confirmAsync({ title: 'Remove this party member?', confirmLabel: 'Remove', danger: true }))) return
     await window.api.party.deleteMember(id)
     setMembers((prev) => prev.filter((m) => m.id !== id))
   }
@@ -109,7 +110,6 @@ export function PartyPage() {
         <MemberDetailModal
           member={detailMember}
           onClose={() => setDetailMember(null)}
-          onUpdate={handleUpdate}
         />
       )}
     </div>

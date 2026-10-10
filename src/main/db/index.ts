@@ -12,6 +12,11 @@ export function initDb(userDataPath: string): void {
   runMigrations()
 }
 
+export function closeDb(): void {
+  db?.close()
+  db = null
+}
+
 export function getDb(): Database.Database {
   if (!db) throw new Error('Database not initialized')
   return db
@@ -275,5 +280,54 @@ function runMigrations(): void {
     `)
 
     d.prepare('UPDATE schema_version SET version = 5').run()
+  }
+
+  if (v < 6) {
+    // Live-session upgrade: app settings (sync join code), a reusable monster
+    // library, richer combatants (initiative modifier, XP value, timed effects,
+    // concentration), and creature tokens on maps.
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key   TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS monster_templates (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        ac         INTEGER,
+        hp         INTEGER,
+        init_mod   INTEGER NOT NULL DEFAULT 0,
+        cr         TEXT NOT NULL DEFAULT '',
+        xp         INTEGER NOT NULL DEFAULT 0,
+        notes      TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS map_tokens (
+        id              TEXT PRIMARY KEY,
+        map_id          TEXT NOT NULL REFERENCES maps(id) ON DELETE CASCADE,
+        name            TEXT NOT NULL,
+        x               REAL NOT NULL DEFAULT 0.5,
+        y               REAL NOT NULL DEFAULT 0.5,
+        size            REAL NOT NULL DEFAULT 1,
+        color           TEXT NOT NULL DEFAULT '#a3142a',
+        kind            TEXT NOT NULL DEFAULT 'monster',
+        combatant_id    TEXT,
+        party_member_id TEXT,
+        hidden          INTEGER NOT NULL DEFAULT 0,
+        image_path      TEXT,
+        created_at      TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_map_tokens_map ON map_tokens(map_id);
+    `)
+
+    const combCols = new Set((d.prepare('PRAGMA table_info(encounter_combatants)').all() as { name: string }[]).map((c) => c.name))
+    if (!combCols.has('init_mod'))      d.exec('ALTER TABLE encounter_combatants ADD COLUMN init_mod INTEGER NOT NULL DEFAULT 0')
+    if (!combCols.has('xp'))            d.exec('ALTER TABLE encounter_combatants ADD COLUMN xp INTEGER NOT NULL DEFAULT 0')
+    if (!combCols.has('effects'))       d.exec("ALTER TABLE encounter_combatants ADD COLUMN effects TEXT NOT NULL DEFAULT '[]'")
+    if (!combCols.has('concentrating')) d.exec('ALTER TABLE encounter_combatants ADD COLUMN concentrating INTEGER NOT NULL DEFAULT 0')
+
+    d.prepare('UPDATE schema_version SET version = 6').run()
   }
 }

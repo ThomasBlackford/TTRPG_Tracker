@@ -54,35 +54,7 @@ export interface Reputation {
   score: number
 }
 
-export interface SessionNote {
-  id: string
-  session_number: number | null
-  title: string
-  content: string // deprecated — pre-migration notes, superseded by recap
-  recap: string // what actually happened
-  prep_notes: string // follow-ups / what to bring into next session
-  linked_cards: string[]
-  linked_party_members: string[]
-  session_date: string
-  created_at: string
-}
-
-export type ThreadStatus = 'open' | 'resolved'
-
-// A plot hook, promise, or reminder that needs to outlive a single session's
-// notes — the running "don't forget X" board.
-export interface Thread {
-  id: string
-  text: string
-  status: ThreadStatus
-  linked_card_id: string | null
-  linked_member_id: string | null
-  created_at: string
-  resolved_at: string | null
-  sort_order: number
-}
-
-export type SearchResultKind = 'card' | 'session' | 'thread'
+export type SearchResultKind = 'card'
 
 // Cards carry their full original shape (type/tags/is_public all matter for
 // the existing card-search UI); sessions and threads are lighter-weight —
@@ -141,7 +113,7 @@ export interface SpotlightState {
   y: number
 }
 
-export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | 'vfx' | null
+export type MapTool = 'pin' | 'fog' | 'ruler' | 'spotlight' | 'vfx' | 'tokens' | null
 
 // Point effects need a target (x, y); screen effects (lightning, impact)
 // play across the whole presentation window and ignore x/y.
@@ -205,7 +177,7 @@ export type VfxPending =
   | { kind: 'zone'; type: ZoneType; center: { x: number; y: number } | null }
   | null
 
-export type Page = 'library' | 'party' | 'sessions' | 'threads' | 'maps' | 'encounter' | 'timeline'
+export type Page = 'library' | 'party' | 'maps' | 'encounter' | 'timeline'
 
 export type Condition =
   'Blinded' | 'Charmed' | 'Deafened' | 'Exhausted' | 'Frightened' |
@@ -223,6 +195,19 @@ export interface Combatant {
   initiative: number | null
   conditions: Condition[]
   sort_order: number
+  init_mod: number
+  xp: number
+  effects: CombatEffect[]
+  concentrating: boolean
+  clientId: string | null // the linked player's sync identity, for party combatants
+}
+
+// A timed effect on a creature ("Hold Person — 10 rounds"); counts down at the
+// end of that creature's own turn.
+export interface CombatEffect {
+  id: string
+  label: string
+  rounds: number | null // null = until removed by hand
 }
 
 export interface EncounterState {
@@ -230,6 +215,34 @@ export interface EncounterState {
   round: number
   currentIndex: number
   combatants: Combatant[]
+  expired?: { name: string; label: string }[] // effects that ran out on the last turn change
+  note?: string // transient message from the last action (e.g. a concentration save prompt)
+}
+
+export interface MonsterTemplate {
+  id: string
+  name: string
+  ac: number | null
+  hp: number | null
+  init_mod: number
+  cr: string
+  xp: number
+  notes: string
+}
+
+export interface MapToken {
+  id: string
+  map_id: string
+  name: string
+  x: number // normalized 0-1, like pins
+  y: number
+  size: number // in grid squares
+  color: string
+  kind: 'party' | 'monster' | 'npc'
+  combatant_id: string | null
+  party_member_id: string | null
+  hidden: boolean
+  image_path: string | null
 }
 
 export interface SceneData {
@@ -250,6 +263,13 @@ export interface PlayerSnapshot {
   initiative: number | null
   hp_current: number | null
   hp_max: number | null
+  hp_temp: number
+  inspiration: boolean
+  death_save_successes?: number
+  death_save_failures?: number
+  concentration?: string
+  exhaustion?: number
+  xp?: number
   spellSlots: { level: number; max: number; current: number }[]
   resources: { id: string; name: string; current: number; max: number; color: string }[]
   conditions: Condition[]
@@ -259,6 +279,42 @@ export interface ConnectedPlayer {
   clientId: string
   snapshot: PlayerSnapshot
   lastSeen: number
+  online: boolean
+}
+
+export type RollKind = 'save' | 'check' | 'skill' | 'initiative' | 'custom'
+
+// Everything the DM can push onto a player's sheet or screen.
+export type DmCommand =
+  | { cmd: 'hp_delta'; amount: number; note?: string }
+  | { cmd: 'condition'; condition: string; on: boolean }
+  | { cmd: 'currency'; cp?: number; sp?: number; ep?: number; gp?: number; pp?: number }
+  | { cmd: 'xp'; amount: number }
+  | { cmd: 'inspiration'; on: boolean }
+  | { cmd: 'rest'; kind: 'short' | 'long' }
+  | { cmd: 'give_item'; name: string; quantity: number; notes?: string; damage?: string; damage_type?: string }
+  | { cmd: 'roll_request'; rollId: string; label: string; kind: RollKind; ability?: string; skill?: string; dc?: number | null }
+  | { cmd: 'notice'; text: string }
+
+export interface RollResult {
+  rollId: string
+  clientId: string
+  playerName: string
+  label: string
+  total: number
+  natural: number
+  modifier: number
+  dc: number | null
+  success: boolean | null
+  at: number
+}
+
+export interface CommandAck {
+  id: string
+  clientId: string
+  ok: boolean
+  summary: string
+  at: number
 }
 
 export interface DmThreadMessage {
@@ -278,6 +334,11 @@ export interface DmThread {
 
 export interface PartySyncState {
   running: boolean
+  requireCode: boolean
+  joinCode: string
+  rolls: RollResult[]
+  commandLog: CommandAck[]
+  error?: string | null // why the server isn't running (e.g. port already in use)
   address: string | null
   // Every plausible LAN address the DM's PC has, best guess first (`address`
   // is just addresses[0]) — shown as a fallback list in the UI since the

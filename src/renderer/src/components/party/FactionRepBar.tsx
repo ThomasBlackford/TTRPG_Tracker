@@ -57,7 +57,7 @@ export function FactionRepBar({
 
       <div
         className="relative h-4 rounded-full overflow-hidden cursor-pointer select-none group"
-        style={{ backgroundColor: '#1e2436' }}
+        style={{ backgroundColor: '#1c0f12' }}
         onClick={handleClick}
         title="Click to set reputation"
       >
@@ -73,7 +73,7 @@ export function FactionRepBar({
         {/* Negative fill (red, grows from center leftward) */}
         {rep.score < 0 && (
           <div
-            className="absolute top-0 h-full rounded-l-full transition-all duration-300"
+            className="absolute top-0 h-full rounded-l-full transition-all duration-500"
             style={{
               right: '50%',
               width: `${fillPercent}%`,
@@ -85,7 +85,7 @@ export function FactionRepBar({
         {/* Positive fill (green, grows from center rightward) */}
         {rep.score > 0 && (
           <div
-            className="absolute top-0 h-full rounded-r-full transition-all duration-300"
+            className="absolute top-0 h-full rounded-r-full transition-all duration-500"
             style={{
               left: '50%',
               width: `${fillPercent}%`,
@@ -104,7 +104,7 @@ export function FactionRepBar({
 
         {/* Score indicator pip */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-slate-900 transition-all duration-300 shadow-lg"
+          className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-slate-900 transition-all duration-500 shadow-lg"
           style={{
             left: `calc(${(rep.score + 100) / 2}% - 5px)`,
             backgroundColor: rep.score === 0 ? '#94a3b8' : tier.color

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { confirmAsync } from '../../lib/confirm'
 import { X, Edit, Trash2, Eye, EyeOff, Tag, MonitorPlay, Image, ChevronRight, Lock } from 'lucide-react'
 import type { Card, CardType } from '../../types'
 import { useUIStore } from '../../store/uiStore'
@@ -56,7 +57,7 @@ export function CardDetail({ card, onRefresh }: { card: Card; onRefresh: () => v
   }, [card.id, card.linked_cards?.join(','), card.parent_id])
 
   async function handleDelete() {
-    if (!confirm(`Delete "${card.name}"? This cannot be undone.`)) return
+    if (!(await confirmAsync({ title: `Delete "${card.name}"?`, message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true }))) return
     await window.api.cards.delete(card.id)
     setSelectedCard(null)
     onRefresh()

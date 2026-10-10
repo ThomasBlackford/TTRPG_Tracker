@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
 import { ImagePlus } from 'lucide-react'
-import type { MapData, MapPin, FogState, MapTool, RulerState, SpotlightState, ZoneMarker } from '../../types'
+import type { MapData, MapPin, FogState, MapTool, RulerState, SpotlightState, ZoneMarker, MapToken } from '../../types'
 import { MapPinMarker } from './MapPinMarker'
 import { FogCanvas } from './FogCanvas'
 import { RulerOverlay } from './RulerOverlay'
@@ -8,6 +8,7 @@ import { GridOverlay } from './GridOverlay'
 import { SpotlightOverlay } from './SpotlightOverlay'
 import { ZoneOverlay } from './ZoneOverlay'
 import { VfxTargetingOverlay } from './VfxTargetingOverlay'
+import { TokenMarker, tokenDiameter } from './TokenMarker'
 
 interface ImgRect { width: number; height: number; offsetX: number; offsetY: number }
 
@@ -38,6 +39,13 @@ interface Props {
   vfxTargeting?: { kind: 'ray' | 'zone'; first: { x: number; y: number } } | null
   // Persistent zone markers, always visible on the DM's own map too.
   zones?: ZoneMarker[]
+  // Creature tokens. `tokenInfo` ties them to the live encounter so the
+  // token whose turn it is glows and each shows its initiative position.
+  tokens?: MapToken[]
+  tokenInfo?: { currentCombatantId: string | null; rankByCombatant: Record<string, number>; downCombatantIds: string[] }
+  selectedTokenId?: string | null
+  onMoveToken?: (id: string, x: number, y: number) => void
+  onSelectToken?: (id: string | null) => void
   // Existing
   selectedPinId: string | null
   onAddPin: (x: number, y: number) => void
@@ -68,6 +76,7 @@ export function MapCanvas({
   gridVisible,
   onPlaceEffect,
   vfxTargeting, zones,
+  tokens, tokenInfo, selectedTokenId, onMoveToken, onSelectToken,
   selectedPinId, onAddPin, onClickPin, onDragPin, onSelectPin, onUploadImage,
   onNaturalSize,
 }: Props) {
@@ -84,6 +93,10 @@ export function MapCanvas({
   // Pin dragging
   const [dragging,   setDragging]   = useState<{ id: string; startX: number; startY: number; moved: boolean } | null>(null)
   const [tempPinPos, setTempPinPos] = useState<{ id: string; x: number; y: number } | null>(null)
+
+  // Token dragging
+  const [tokenDrag, setTokenDrag] = useState<{ id: string; startX: number; startY: number; moved: boolean } | null>(null)
+  const [tempTokenPos, setTempTokenPos] = useState<{ id: string; x: number; y: number } | null>(null)
 
   // Canvas panning
   const [panning, setPanning] = useState<{ startX: number; startY: number; startPanX: number; startPanY: number; moved: boolean } | null>(null)
@@ -194,7 +207,7 @@ export function MapCanvas({
   // ── Container pointer (pan / fog / ruler / spotlight) ────────────────────
 
   function handleContainerPointerDown(e: React.PointerEvent<HTMLDivElement>) {
-    if ((e.target as HTMLElement).closest('[data-pin]')) return
+    if ((e.target as HTMLElement).closest('[data-pin]') || (e.target as HTMLElement).closest('[data-token]')) return
     e.currentTarget.setPointerCapture(e.pointerId)
 
     if (activeTool === 'fog') {
@@ -331,6 +344,32 @@ export function MapCanvas({
     setTempPinPos(null)
   }
 
+  // ── Token pointer events ─────────────────────────────────────────────────
+
+  function handleTokenPointerDown(e: React.PointerEvent, t: MapToken) {
+    e.stopPropagation()
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    setTokenDrag({ id: t.id, startX: e.clientX, startY: e.clientY, moved: false })
+  }
+
+  function handleTokenPointerMove(e: React.PointerEvent, t: MapToken) {
+    if (!tokenDrag || tokenDrag.id !== t.id) return
+    const dx = e.clientX - tokenDrag.startX
+    const dy = e.clientY - tokenDrag.startY
+    if (!tokenDrag.moved && Math.hypot(dx, dy) < 5) return
+    if (!tokenDrag.moved) setTokenDrag((d) => d && { ...d, moved: true })
+    const { x, y } = toImageCoords(e.clientX, e.clientY)
+    setTempTokenPos({ id: t.id, x, y })
+  }
+
+  function handleTokenPointerUp(_e: React.PointerEvent, t: MapToken) {
+    if (!tokenDrag || tokenDrag.id !== t.id) return
+    if (tokenDrag.moved && tempTokenPos?.id === t.id) onMoveToken?.(t.id, tempTokenPos.x, tempTokenPos.y)
+    else onSelectToken?.(selectedTokenId === t.id ? null : t.id)
+    setTokenDrag(null)
+    setTempTokenPos(null)
+  }
+
   // ── Cursor ───────────────────────────────────────────────────────────────
 
   const cursor = (() => {
@@ -443,6 +482,33 @@ export function MapCanvas({
           natH={natDims.h}
         />
       )}
+
+      {/* Creature tokens */}
+      {imgRect.width > 0 && tokens?.map((t) => {
+        const p = tempTokenPos?.id === t.id ? tempTokenPos : t
+        const left = imgRect.offsetX + pan.x + p.x * imgRect.width * scale
+        const top = imgRect.offsetY + pan.y + p.y * imgRect.height * scale
+        const cid = t.combatant_id
+        const canGrab = activeTool === null || activeTool === 'tokens'
+        return (
+          <TokenMarker
+            key={t.id}
+            token={t}
+            left={left}
+            top={top}
+            diameter={tokenDiameter(t, map, imgRect, natDims.w, scale)}
+            isCurrent={!!cid && tokenInfo?.currentCombatantId === cid}
+            rank={cid ? tokenInfo?.rankByCombatant[cid] ?? null : null}
+            down={!!cid && !!tokenInfo?.downCombatantIds.includes(cid)}
+            dimmed={t.hidden}
+            selected={selectedTokenId === t.id}
+            interactive={canGrab}
+            onPointerDown={(e) => handleTokenPointerDown(e, t)}
+            onPointerMove={(e) => handleTokenPointerMove(e, t)}
+            onPointerUp={(e) => handleTokenPointerUp(e, t)}
+          />
+        )
+      })}
 
       {/* Pins */}
       {imgRect.width > 0 && pins.map((pin) => {

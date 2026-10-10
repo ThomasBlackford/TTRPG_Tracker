@@ -1,4 +1,5 @@
 import { useUIStore } from './store/uiStore'
+import { ConfirmHost } from './components/layout/ConfirmHost'
 import { useSettings } from './contexts/SettingsContext'
 import { Sidebar } from './components/layout/Sidebar'
 import { GlobalSearch } from './components/layout/GlobalSearch'
@@ -7,12 +8,9 @@ import { UpdateBanner } from './components/layout/UpdateBanner'
 import { SecretMessagesWidget } from './components/party/SecretMessagesWidget'
 import { LibraryPage } from './pages/LibraryPage'
 import { PartyPage } from './pages/PartyPage'
-import { SessionsPage } from './pages/SessionsPage'
-import { ThreadsPage } from './pages/ThreadsPage'
 import { MapPage } from './pages/MapPage'
 import { EncounterPage } from './pages/EncounterPage'
 import { TimelinePage } from './pages/TimelinePage'
-import { QuickThreadWidget } from './components/layout/QuickThreadWidget'
 
 export function App() {
   const { currentPage } = useUIStore()
@@ -22,8 +20,6 @@ export function App() {
     <main className="flex-1 flex overflow-hidden">
       {currentPage === 'library'  && <LibraryPage />}
       {currentPage === 'party'    && <PartyPage />}
-      {currentPage === 'sessions' && <SessionsPage />}
-      {currentPage === 'threads'  && <ThreadsPage />}
       {currentPage === 'maps'     && <MapPage />}
       {currentPage === 'encounter' && <EncounterPage />}
       {currentPage === 'timeline'  && <TimelinePage />}
@@ -31,7 +27,8 @@ export function App() {
   )
 
   return (
-    <div className="flex h-screen overflow-hidden bg-surface-base">
+    <div className="flex h-screen overflow-hidden">
+      <div className="app-topbar" />
       {sidebar === 'right' ? (
         <>
           {main}
@@ -44,8 +41,8 @@ export function App() {
         </>
       )}
       <GlobalSearch />
+      <ConfirmHost />
       <SecretMessagesWidget />
-      <QuickThreadWidget />
       <SettingsButton />
       <UpdateBanner />
     </div>

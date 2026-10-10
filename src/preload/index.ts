@@ -25,17 +25,22 @@ const api = {
     setReputation: (memberId: string, factionId: string, score: number) =>
       ipcRenderer.invoke('party:setReputation', memberId, factionId, score)
   },
-  sessions: {
-    list: () => ipcRenderer.invoke('sessions:list'),
-    get: (id: string) => ipcRenderer.invoke('sessions:get', id),
-    save: (note: Record<string, unknown>) => ipcRenderer.invoke('sessions:save', note),
-    delete: (id: string) => ipcRenderer.invoke('sessions:delete', id)
+  monsters: {
+    list: () => ipcRenderer.invoke('monsters:list'),
+    save: (m: unknown) => ipcRenderer.invoke('monsters:save', m),
+    delete: (id: string) => ipcRenderer.invoke('monsters:delete', id)
   },
-  threads: {
-    list: () => ipcRenderer.invoke('threads:list'),
-    create: (data: Record<string, unknown>) => ipcRenderer.invoke('threads:create', data),
-    update: (id: string, changes: Record<string, unknown>) => ipcRenderer.invoke('threads:update', id, changes),
-    delete: (id: string) => ipcRenderer.invoke('threads:delete', id)
+  tokens: {
+    list: (mapId: string) => ipcRenderer.invoke('tokens:list', mapId),
+    save: (token: unknown) => ipcRenderer.invoke('tokens:save', token),
+    delete: (id: string) => ipcRenderer.invoke('tokens:delete', id),
+    placeCombatants: (mapId: string) => ipcRenderer.invoke('tokens:placeCombatants', mapId),
+    push: (mapId: string) => ipcRenderer.invoke('tokens:push', mapId),
+    onUpdate: (cb: (data: { mapId: string; tokens: unknown[] }) => void) => {
+      const handler = (_e: IpcRendererEvent, data: { mapId: string; tokens: unknown[] }) => cb(data)
+      ipcRenderer.on('maps:tokensUpdate', handler)
+      return () => ipcRenderer.removeListener('maps:tokensUpdate', handler)
+    }
   },
   search: {
     query: (q: string) => ipcRenderer.invoke('search:query', q)
@@ -140,6 +145,8 @@ const api = {
     updateCombatant: (id: string, changes: unknown) => ipcRenderer.invoke('encounter:updateCombatant', id, changes),
     removeCombatant: (id: string) => ipcRenderer.invoke('encounter:removeCombatant', id),
     nextTurn: () => ipcRenderer.invoke('encounter:nextTurn'),
+    applyHp: (id: string, amount: number, mode?: string) => ipcRenderer.invoke('encounter:applyHp', id, amount, mode),
+    rollMonsterInitiative: (opts: unknown) => ipcRenderer.invoke('encounter:rollMonsterInitiative', opts),
     prevTurn: () => ipcRenderer.invoke('encounter:prevTurn'),
     onUpdate: (cb: (state: unknown) => void) => {
       const handler = (_e: IpcRendererEvent, state: unknown) => cb(state)
@@ -148,6 +155,12 @@ const api = {
     },
   },
   partySync: {
+    command: (clientId: string, command: unknown) => ipcRenderer.invoke('partySync:command', clientId, command),
+    broadcast: (command: unknown, clientIds?: string[]) => ipcRenderer.invoke('partySync:broadcast', command, clientIds),
+    handout: (clientIds: string[] | null, data: unknown) => ipcRenderer.invoke('partySync:handout', clientIds, data),
+    setRequireCode: (on: boolean) => ipcRenderer.invoke('partySync:setRequireCode', on),
+    regenerateCode: () => ipcRenderer.invoke('partySync:regenerateCode'),
+    clearRolls: () => ipcRenderer.invoke('partySync:clearRolls'),
     start: () => ipcRenderer.invoke('partySync:start'),
     stop: () => ipcRenderer.invoke('partySync:stop'),
     status: () => ipcRenderer.invoke('partySync:status'),
@@ -157,6 +170,15 @@ const api = {
       ipcRenderer.on('partySync:update', handler)
       return () => ipcRenderer.removeListener('partySync:update', handler)
     },
+  },
+  backup: {
+    export: () => ipcRenderer.invoke('backup:export'),
+    import: () => ipcRenderer.invoke('backup:import'),
+    info: () => ipcRenderer.invoke('backup:info'),
+    openFolder: () => ipcRenderer.invoke('backup:openFolder')
+  },
+  app: {
+    version: () => ipcRenderer.invoke('app:version') as Promise<string>
   },
   updater: {
     status: () => ipcRenderer.invoke('updater:status'),
