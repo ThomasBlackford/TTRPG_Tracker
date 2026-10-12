@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { BookOpen, Users, Search, Map, Swords, CalendarDays } from 'lucide-react'
+import { BookOpen, Users, Search, Map, Swords, CalendarDays, Gem, FlaskConical, ScrollText } from 'lucide-react'
 import { useUIStore } from '../../store/uiStore'
 import { useSettings } from '../../contexts/SettingsContext'
 import type { Page } from '../../types'
@@ -9,7 +9,10 @@ const navItems: { page: Page; label: string; icon: React.ReactNode }[] = [
   { page: 'encounter', label: 'Encounter', icon: <Swords size={17} /> },
   { page: 'maps',      label: 'Maps',      icon: <Map size={17} /> },
   { page: 'library',   label: 'Library',   icon: <BookOpen size={17} /> },
-  { page: 'timeline',  label: 'Timeline',  icon: <CalendarDays size={17} /> }
+  { page: 'timeline',  label: 'Timeline',  icon: <CalendarDays size={17} /> },
+  { page: 'loot',      label: 'Loot',      icon: <Gem size={17} /> },
+  { page: 'homebrew',  label: 'Homebrew',  icon: <FlaskConical size={17} /> },
+  { page: 'log',       label: 'Log',       icon: <ScrollText size={17} /> }
 ]
 
 export function Sidebar() {

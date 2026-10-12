@@ -10,6 +10,10 @@ interface MapPresentState {
   presenting: boolean
   setPresenting: (v: boolean) => void
 
+  // Whether the current map is also being shown on the players' own screens.
+  sharing: boolean
+  setSharing: (v: boolean) => void
+
   mapStack: string[]
   setMapStack: (stack: string[] | ((prev: string[]) => string[])) => void
 }
@@ -17,6 +21,9 @@ interface MapPresentState {
 export const useMapPresentStore = create<MapPresentState>((set) => ({
   presenting: false,
   setPresenting: (v) => set({ presenting: v }),
+
+  sharing: false,
+  setSharing: (v) => set({ sharing: v }),
 
   mapStack: [],
   setMapStack: (stack) =>

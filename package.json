@@ -10,7 +10,8 @@
     "dist": "electron-vite build && electron-builder --win",
     "postinstall": "electron-builder install-app-deps",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
-    "test": "node tests/run.mjs"
+    "test": "node tests/run.mjs",
+    "fx:preview": "vite --config tools/fx-preview/vite.config.mjs --open"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",

@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Plus, Search, Save, Trash2 } from 'lucide-react'
-import type { EncounterState, MonsterTemplate } from '../../types'
-import { BUILT_IN_MONSTERS } from '../../data/monsters'
+import { useState } from 'react'
+import { Plus, Save, Crown, ChevronDown, ChevronRight } from 'lucide-react'
+import type { EncounterState, Statblock } from '../../types'
 import { crToXp } from '../../lib/dnd5e'
+import { useMonsterLibrary } from '../../lib/monsterLibrary'
+import type { LibraryEntry } from '../../lib/monsterLibrary'
+import { MonsterPicker } from './MonsterPicker'
 
 export interface MonsterInput {
   name: string
@@ -13,21 +15,15 @@ export interface MonsterInput {
   count?: number
   rollInitiative?: boolean
   grouped?: boolean
+  legendary_actions?: number
+  legendary_resistances?: number
+  recharges?: { name: string; min: number }[]
+  lair?: boolean
+  statblock?: Statblock | null
 }
 
 interface Props {
   onAdd: (data: MonsterInput) => Promise<EncounterState>
-}
-
-interface LibraryEntry {
-  key: string
-  name: string
-  cr: string
-  ac: number | null
-  hp: number | null
-  init: number
-  xp: number
-  custom?: MonsterTemplate
 }
 
 const toInt = (s: string): number | undefined => {
@@ -35,12 +31,27 @@ const toInt = (s: string): number | undefined => {
   return Number.isFinite(n) ? n : undefined
 }
 
+// "Fire Breath 5, Cold Breath 6" → [{name, min}] and back.
+function parseRecharges(text: string): { name: string; min: number }[] {
+  return text
+    .split(',')
+    .map((part) => {
+      const m = part.trim().match(/^(.*?)(?:\s+(\d))?$/)
+      const name = (m?.[1] ?? '').trim()
+      return name ? { name, min: Math.max(2, Math.min(6, parseInt(m?.[2] ?? '5', 10) || 5)) } : null
+    })
+    .filter((x): x is { name: string; min: number } => !!x)
+}
+
+function recharges(list: { name: string; min: number }[]): string {
+  return list.map((r) => `${r.name} ${r.min}`).join(', ')
+}
+
 // Pick from the built-in bestiary or your own saved monsters (or type a
 // one-off), choose how many, and add — numbered copies and initiative rolled
 // for you, either per creature or once for the whole pack.
 export function AddMonsterForm({ onAdd }: Props) {
-  const [custom, setCustom] = useState<MonsterTemplate[]>([])
-  const [query, setQuery] = useState('')
+  const { library, setCustom } = useMonsterLibrary()
   const [name, setName] = useState('')
   const [hp, setHp] = useState('')
   const [ac, setAc] = useState('')
@@ -51,24 +62,12 @@ export function AddMonsterForm({ onAdd }: Props) {
   const [rollInit, setRollInit] = useState(true)
   const [grouped, setGrouped] = useState(true)
   const [savedNote, setSavedNote] = useState('')
-
-  useEffect(() => {
-    window.api.monsters.list().then(setCustom)
-  }, [])
-
-  const library: LibraryEntry[] = useMemo(
-    () => [
-      ...custom.map<LibraryEntry>((m) => ({ key: m.id, name: m.name, cr: m.cr, ac: m.ac, hp: m.hp, init: m.init_mod, xp: m.xp, custom: m })),
-      ...BUILT_IN_MONSTERS.map<LibraryEntry>((m) => ({ key: m.name, name: m.name, cr: m.cr, ac: m.ac, hp: m.hp, init: m.init, xp: m.xp }))
-    ],
-    [custom]
-  )
-
-  const matches = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return []
-    return library.filter((m) => m.name.toLowerCase().includes(q)).slice(0, 8)
-  }, [query, library])
+  const [boss, setBoss] = useState(false)
+  const [legendary, setLegendary] = useState('')
+  const [legRes, setLegRes] = useState('')
+  const [rechargeText, setRechargeText] = useState('')
+  const [lair, setLair] = useState(false)
+  const [statblock, setStatblock] = useState<Statblock | null>(null)
 
   function pick(m: LibraryEntry) {
     setName(m.name)
@@ -77,18 +76,34 @@ export function AddMonsterForm({ onAdd }: Props) {
     setInitMod(String(m.init))
     setXp(String(m.xp || crToXp(m.cr)))
     setCr(m.cr)
-    setQuery('')
+    setLegendary(m.legendary ? String(m.legendary) : '')
+    setLegRes(m.legres ? String(m.legres) : '')
+    setRechargeText(recharges(m.recharges))
+    setLair(m.lair)
+    setStatblock(m.statblock)
+    setBoss(m.legendary > 0 || m.legres > 0 || m.recharges.length > 0 || m.lair)
+  }
+
+  function current(): MonsterInput {
+    return {
+      name: name.trim(),
+      hp_max: toInt(hp),
+      ac: toInt(ac),
+      init_mod: toInt(initMod) ?? 0,
+      xp: toInt(xp) ?? 0,
+      legendary_actions: toInt(legendary) ?? 0,
+      legendary_resistances: toInt(legRes) ?? 0,
+      recharges: parseRecharges(rechargeText),
+      lair,
+      statblock
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) return
     await onAdd({
-      name: name.trim(),
-      hp_max: toInt(hp),
-      ac: toInt(ac),
-      init_mod: toInt(initMod) ?? 0,
-      xp: toInt(xp) ?? 0,
+      ...current(),
       count: toInt(count) ?? 1,
       rollInitiative: rollInit,
       grouped: grouped && (toInt(count) ?? 1) > 1
@@ -97,13 +112,19 @@ export function AddMonsterForm({ onAdd }: Props) {
 
   async function saveToLibrary() {
     if (!name.trim()) return
+    const c = current()
     const saved = await window.api.monsters.save({
-      name: name.trim(),
-      hp: toInt(hp) ?? null,
-      ac: toInt(ac) ?? null,
-      init_mod: toInt(initMod) ?? 0,
+      name: c.name,
+      hp: c.hp_max ?? null,
+      ac: c.ac ?? null,
+      init_mod: c.init_mod ?? 0,
       cr,
-      xp: toInt(xp) ?? 0
+      xp: c.xp ?? 0,
+      legendary_actions: c.legendary_actions,
+      legendary_resistances: c.legendary_resistances,
+      recharges: c.recharges,
+      lair: c.lair,
+      statblock: c.statblock
     })
     setCustom((list) => [saved, ...list.filter((m) => m.id !== saved.id && m.name !== saved.name)])
     setSavedNote('Saved to My monsters')
@@ -119,45 +140,7 @@ export function AddMonsterForm({ onAdd }: Props) {
     <form onSubmit={handleSubmit} className="space-y-3">
       <p className="text-[10px] uppercase tracking-[0.25em] text-slate-500">Add monsters</p>
 
-      <div className="relative">
-        <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-600" />
-        <input
-          className="input text-xs pl-7"
-          placeholder="Search bestiary…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoComplete="off"
-        />
-        {matches.length > 0 && (
-          <div className="absolute z-20 left-0 right-0 top-full mt-1 bg-surface-raised border border-border shadow-2xl max-h-64 overflow-y-auto">
-            {matches.map((m) => (
-              <div key={m.key} className="flex items-center group">
-                <button
-                  type="button"
-                  onClick={() => pick(m)}
-                  className="flex-1 flex items-center justify-between gap-2 px-3 py-2 text-xs text-left hover:bg-white/5 transition-colors"
-                >
-                  <span className="text-slate-200 truncate">
-                    {m.name}
-                    {m.custom && <span className="ml-1.5 text-[9px] uppercase tracking-wider text-amber-400">mine</span>}
-                  </span>
-                  <span className="text-slate-500 flex-shrink-0">CR {m.cr || '?'} · AC {m.ac ?? '—'} · {m.hp ?? '—'}hp</span>
-                </button>
-                {m.custom && (
-                  <button
-                    type="button"
-                    onClick={() => removeCustom(m.custom!.id)}
-                    className="px-2 text-slate-700 hover:text-red-400 transition-colors"
-                    title="Delete from My monsters"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <MonsterPicker library={library} onPick={pick} onDeleteCustom={removeCustom} />
 
       <input
         className="input text-sm"
@@ -194,6 +177,43 @@ export function AddMonsterForm({ onAdd }: Props) {
           <label className="text-[10px] uppercase tracking-wider text-slate-500">How many</label>
           <input className="input text-sm mt-0.5 text-center" value={count} onChange={(e) => setCount(e.target.value.replace(/[^0-9]/g, ''))} />
         </div>
+      </div>
+
+      <div>
+        <button
+          type="button"
+          onClick={() => setBoss((v) => !v)}
+          className="flex items-center gap-1.5 text-[11px] uppercase tracking-wider text-slate-500 hover:text-slate-200 transition-colors"
+        >
+          {boss ? <ChevronDown size={11} /> : <ChevronRight size={11} />} <Crown size={11} /> Boss options
+        </button>
+        {boss && (
+          <div className="mt-2 space-y-2 pl-1">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-slate-500">Legendary actions</label>
+                <input className="input text-sm mt-0.5 text-center" placeholder="0" value={legendary} onChange={(e) => setLegendary(e.target.value.replace(/[^0-9]/g, ''))} />
+              </div>
+              <div>
+                <label className="text-[10px] uppercase tracking-wider text-slate-500">Legend. resist.</label>
+                <input className="input text-sm mt-0.5 text-center" placeholder="0" value={legRes} onChange={(e) => setLegRes(e.target.value.replace(/[^0-9]/g, ''))} />
+              </div>
+            </div>
+            <div>
+              <label className="text-[10px] uppercase tracking-wider text-slate-500">Recharge abilities</label>
+              <input
+                className="input text-sm mt-0.5"
+                placeholder="Fire Breath 5, Tail Sweep 6"
+                value={rechargeText}
+                onChange={(e) => setRechargeText(e.target.value)}
+                title="Name, then the lowest d6 roll that recharges it"
+              />
+            </div>
+            <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">
+              <input type="checkbox" checked={lair} onChange={(e) => setLair(e.target.checked)} /> Lair actions (initiative 20)
+            </label>
+          </div>
+        )}
       </div>
 
       <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer">

@@ -3,7 +3,7 @@ import { confirmAsync } from '../lib/confirm'
 import {
   Pin, ChevronRight, ImagePlus, Pencil, Check, X as XIcon,
   MonitorPlay, MonitorOff, Cloud, Ruler, Crosshair, Grid,
-  Settings, Image, Tv2, Sparkles, CircleUser
+  Settings, Image, Tv2, Sparkles, CircleUser, Smartphone
 } from 'lucide-react'
 import type {
   MapData, MapPin, Card, FogState, MapTool, RulerState, SpotlightState, SceneData,
@@ -29,7 +29,8 @@ export function MapPage() {
   // Presenting + which map is current live outside this component's state —
   // they must survive switching to another tab and back without desyncing
   // from the actual (still-open) TV window. See mapPresentStore.
-  const { presenting, setPresenting, mapStack, setMapStack } = useMapPresentStore()
+  const { presenting, setPresenting, mapStack, setMapStack, sharing, setSharing } = useMapPresentStore()
+  const [shareError, setShareError] = useState('')
 
   const [maps, setMaps]     = useState<MapData[]>([])
   const [pins, setPins]     = useState<MapPin[]>([])
@@ -347,6 +348,28 @@ export function MapPage() {
     const next = { ...ambientVfx, [key]: !ambientVfx[key] }
     setAmbientVfx(next)
     if (presenting) window.api.maps.pushAmbientVfx(next)
+  }
+
+  // ── Sharing with players' own screens ────────────────────────────────────
+
+  // Following the DM from map to map while sharing is on.
+  useEffect(() => {
+    if (!sharing) return
+    window.api.mapShare.set(currentMapId).then((r) => {
+      setShareError(r.ok ? '' : r.error ?? '')
+      if (!r.ok) setSharing(false)
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sharing, currentMapId])
+
+  async function handleShare() {
+    if (sharing) {
+      await window.api.mapShare.set(null)
+      setSharing(false)
+      setShareError('')
+    } else {
+      setSharing(true)
+    }
   }
 
   // ── Presentation ─────────────────────────────────────────────────────────
@@ -769,6 +792,22 @@ export function MapPage() {
             {currentMap && toolBtn('vfx', <Sparkles size={13} />, 'Effects', 'bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300')}
             {currentMap && toolBtn('tokens', <CircleUser size={13} />, 'Tokens', 'bg-sky-500/20 border-sky-500/40 text-sky-300')}
             {currentMap && toolBtn('pin', <Pin size={13} />, 'Add Pin', 'bg-amber-500/20 border-amber-500/40 text-amber-300')}
+            {currentMap && (
+              <button
+                onClick={handleShare}
+                title={shareError || (sharing ? "Stop showing this map on the players' screens" : "Show this map, its tokens and fog on the players' own screens (Companion app)")}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border transition-colors ${
+                  sharing
+                    ? 'bg-sky-500/20 border-sky-500/40 text-sky-300'
+                    : shareError
+                      ? 'border-red-500/40 text-red-300'
+                      : 'border-border text-slate-400 hover:text-slate-200 hover:border-slate-500'
+                }`}
+              >
+                <Smartphone size={13} />
+                {sharing ? 'Sharing' : 'Share to players'}
+              </button>
+            )}
             {currentMap && (
               <button
                 onClick={handlePresent}

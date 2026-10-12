@@ -330,4 +330,73 @@ function runMigrations(): void {
 
     d.prepare('UPDATE schema_version SET version = 6').run()
   }
+
+  if (v < 7) {
+    // Boss-fight tracking (legendary actions/resistances, recharge abilities,
+    // lair actions), companions in the initiative order, a per-fight log, saved
+    // encounters, homebrew items, and richer monster stat blocks.
+    const addCols = (table: string, defs: Record<string, string>): void => {
+      const have = new Set((d.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name))
+      for (const [name, def] of Object.entries(defs)) {
+        if (!have.has(name)) d.exec(`ALTER TABLE ${table} ADD COLUMN ${name} ${def}`)
+      }
+    }
+    addCols('encounter_combatants', {
+      legendary_max: 'INTEGER NOT NULL DEFAULT 0',
+      legendary_current: 'INTEGER NOT NULL DEFAULT 0',
+      legres_max: 'INTEGER NOT NULL DEFAULT 0',
+      legres_current: 'INTEGER NOT NULL DEFAULT 0',
+      recharges: "TEXT NOT NULL DEFAULT '[]'",
+      is_lair: 'INTEGER NOT NULL DEFAULT 0',
+      companion_id: 'TEXT',
+      owner_client_id: 'TEXT',
+      concentration_spell: "TEXT NOT NULL DEFAULT ''",
+      statblock: "TEXT NOT NULL DEFAULT ''"
+    })
+    addCols('encounter_state', { log_id: "TEXT NOT NULL DEFAULT ''" })
+    addCols('monster_templates', {
+      legendary_actions: 'INTEGER NOT NULL DEFAULT 0',
+      legendary_resistances: 'INTEGER NOT NULL DEFAULT 0',
+      recharges: "TEXT NOT NULL DEFAULT '[]'",
+      lair: 'INTEGER NOT NULL DEFAULT 0',
+      statblock: "TEXT NOT NULL DEFAULT ''"
+    })
+
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS custom_items (
+        id          TEXT PRIMARY KEY,
+        name        TEXT NOT NULL,
+        category    TEXT NOT NULL DEFAULT 'wondrous',
+        rarity      TEXT NOT NULL DEFAULT 'common',
+        attunement  INTEGER NOT NULL DEFAULT 0,
+        description TEXT NOT NULL DEFAULT '',
+        damage      TEXT NOT NULL DEFAULT '',
+        damage_type TEXT NOT NULL DEFAULT '',
+        value_gp    REAL NOT NULL DEFAULT 0,
+        created_at  TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS saved_encounters (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        notes      TEXT NOT NULL DEFAULT '',
+        entries    TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS session_log (
+        id       INTEGER PRIMARY KEY AUTOINCREMENT,
+        at       INTEGER NOT NULL,
+        kind     TEXT NOT NULL,
+        text     TEXT NOT NULL,
+        group_id TEXT NOT NULL DEFAULT '',
+        data     TEXT NOT NULL DEFAULT ''
+      );
+      CREATE INDEX IF NOT EXISTS idx_session_log_at ON session_log(at);
+      CREATE INDEX IF NOT EXISTS idx_session_log_group ON session_log(group_id);
+    `)
+
+    d.prepare('UPDATE schema_version SET version = 7').run()
+  }
 }

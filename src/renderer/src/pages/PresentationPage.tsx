@@ -6,7 +6,7 @@ import { FogSvgFilter } from '../components/maps/FogSvgFilter'
 import { GridOverlay } from '../components/maps/GridOverlay'
 import { RulerOverlay } from '../components/maps/RulerOverlay'
 import { SpotlightOverlay } from '../components/maps/SpotlightOverlay'
-import { VfxOverlay, VFX_DURATIONS } from '../components/maps/VfxOverlay'
+import { VfxOverlay, VFX_DURATIONS, vfxShakes } from '../components/maps/VfxOverlay'
 import { RayOverlay, RAY_DURATIONS } from '../components/maps/RayOverlay'
 import { ZoneOverlay } from '../components/maps/ZoneOverlay'
 import { TokenMarker, tokenDiameter } from '../components/maps/TokenMarker'
@@ -45,6 +45,8 @@ export function PresentationPage({ initialMapId }: Props) {
   const [handout, setHandout] = useState<{ imagePath: string } | null>(null)
   const [scene, setScene] = useState<SceneData | null>(null)
   const [effects, setEffects] = useState<VfxEvent[]>([])
+  const [shaking, setShaking] = useState(false)
+  const shakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [rays, setRays] = useState<RayEvent[]>([])
   const [zones, setZones] = useState<ZoneMarker[]>([])
   const [tokens, setTokens] = useState<MapToken[]>([])
@@ -126,6 +128,15 @@ export function PresentationPage({ initialMapId }: Props) {
     const c9 = window.api.maps.onEffectUpdate((d) => {
       const evt = d as VfxEvent
       setEffects((prev) => [...prev, evt])
+      // Heavy hits shake the whole screen, map included.
+      if (vfxShakes(evt.type)) {
+        setShaking(false)
+        requestAnimationFrame(() => {
+          setShaking(true)
+          if (shakeTimer.current) clearTimeout(shakeTimer.current)
+          shakeTimer.current = setTimeout(() => setShaking(false), 560)
+        })
+      }
       setTimeout(() => {
         setEffects((prev) => prev.filter((e) => e.id !== evt.id))
       }, VFX_DURATIONS[evt.type])
@@ -191,7 +202,7 @@ export function PresentationPage({ initialMapId }: Props) {
   return (
     <div
       ref={containerRef}
-      className="flex h-screen bg-black overflow-hidden select-none relative"
+      className={`flex h-screen bg-black overflow-hidden select-none relative ${shaking ? 'vfx-shake-root' : ''}`}
       style={{ cursor: 'grab' }}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}

@@ -9,6 +9,12 @@ export interface BuiltInMonster {
   hp: number
   init: number // initiative modifier (Dexterity)
   xp: number
+  // Boss-fight extras, where the creature has them.
+  legendary?: number // legendary actions per round
+  legres?: number // legendary resistances per day
+  recharges?: { name: string; min: number }[]
+  lair?: boolean
+  notes?: string // a short working summary — check your book for the full text
 }
 
 export const BUILT_IN_MONSTERS: BuiltInMonster[] = [
@@ -72,7 +78,18 @@ export const BUILT_IN_MONSTERS: BuiltInMonster[] = [
   { name: 'Wyvern', cr: '6', ac: 13, hp: 110, init: 0, xp: 2300 },
   { name: 'Chimera', cr: '6', ac: 14, hp: 114, init: 0, xp: 2300 },
   { name: 'Medusa', cr: '6', ac: 15, hp: 127, init: 2, xp: 2300 },
-  { name: 'Young Green Dragon', cr: '8', ac: 18, hp: 136, init: 1, xp: 3900 },
+  { name: 'Mind Flayer', cr: '7', ac: 15, hp: 71, init: 1, xp: 2900, notes: 'Mind Blast (recharge 5-6): 60 ft cone, INT save DC 15 or 5d8+4 psychic and stunned. Tentacles: extract brain on a stunned grappled target.' },
+  { name: 'Hydra', cr: '8', ac: 15, hp: 172, init: 1, xp: 3900, notes: 'Five heads: bite each. Gains two heads when it loses 25+ damage in a turn; heads regrow unless burned.' },
+  { name: 'Frost Giant', cr: '8', ac: 15, hp: 138, init: -1, xp: 3900 },
+  { name: 'Young Green Dragon', cr: '8', ac: 18, hp: 136, init: 1, xp: 3900, recharges: [{ name: 'Poison Breath', min: 5 }], notes: 'Poison Breath: 30 ft cone, CON save DC 14, 12d6 poison. Multiattack: bite + 2 claws.' },
+  { name: 'Fire Giant', cr: '9', ac: 18, hp: 162, init: -1, xp: 5000 },
+  { name: 'Aboleth', cr: '10', ac: 17, hp: 135, init: -1, xp: 5900, legendary: 3, lair: true, notes: 'Tentacle (disease), Tail, Enslave (3/day). Legendary: Detect, Tail Swipe, Psychic Drain (costs 2).' },
+  { name: 'Young Red Dragon', cr: '10', ac: 18, hp: 178, init: 0, xp: 5900, recharges: [{ name: 'Fire Breath', min: 5 }], notes: 'Fire Breath: 30 ft cone, DEX save DC 17, 16d6 fire. Multiattack: bite + 2 claws.' },
+  { name: 'Vampire', cr: '13', ac: 16, hp: 144, init: 4, xp: 10000, legendary: 3, legres: 3, lair: true, notes: 'Regeneration 20 (not in sunlight or running water). Bite drains max HP. Charm. Shapechanger. Legendary: Move, Unarmed Strike, Bite (costs 2).' },
+  { name: 'Beholder', cr: '13', ac: 18, hp: 180, init: 2, xp: 10000, legendary: 3, lair: true, notes: 'Antimagic cone from its central eye. Ten eye rays (3 per turn). Legendary: Eye Ray (costs 1 each).' },
+  { name: 'Mummy Lord', cr: '15', ac: 17, hp: 97, init: 0, xp: 13000, legendary: 3, legres: 3, lair: true, notes: 'Rotting fist (mummy rot), Dreadful Glare. Casts cleric spells. Legendary: Attack, Blinding Dust, Blasphemous Word, Channel Negative Energy, Whirlwind of Sand.' },
+  { name: 'Adult Blue Dragon', cr: '16', ac: 19, hp: 225, init: 0, xp: 15000, legendary: 3, legres: 3, lair: true, recharges: [{ name: 'Lightning Breath', min: 5 }], notes: 'Lightning Breath: 90 ft line, DEX save DC 19, 12d10 lightning. Multiattack: frightful presence, bite, 2 claws. Legendary: Detect, Tail Attack, Wing Attack (costs 2).' },
   { name: 'Assassin', cr: '8', ac: 15, hp: 78, init: 3, xp: 3900 },
-  { name: 'Adult Red Dragon', cr: '17', ac: 19, hp: 256, init: 0, xp: 18000 }
+  { name: 'Adult Red Dragon', cr: '17', ac: 19, hp: 256, init: 0, xp: 18000, legendary: 3, legres: 3, lair: true, recharges: [{ name: 'Fire Breath', min: 5 }], notes: 'Fire Breath: 60 ft cone, DEX save DC 21, 18d6 fire. Multiattack: frightful presence, bite, 2 claws. Legendary: Detect, Tail Attack, Wing Attack (costs 2).' },
+  { name: 'Lich', cr: '21', ac: 17, hp: 135, init: 3, xp: 33000, legendary: 3, legres: 3, lair: true, notes: 'Casts as an 18th-level wizard. Paralyzing Touch. Rejuvenation via phylactery. Legendary: Cantrip, Paralyzing Touch (costs 2), Frightening Gaze (costs 2), Disrupt Life (costs 3).' }
 ]

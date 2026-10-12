@@ -5,6 +5,7 @@ import { ConditionBadge } from '../encounter/ConditionBadge'
 import { TableActionModal } from './TableActionModal'
 import type { ActionTab } from './TableActionModal'
 import { RollLog } from './RollLog'
+import { ResourceStrip } from '../encounter/ResourceStrip'
 
 function lastSeenLabel(at: number): string {
   const s = Math.max(0, Math.round((Date.now() - at) / 1000))
@@ -15,7 +16,6 @@ function lastSeenLabel(at: number): string {
 
 function ConnectedPlayerRow({ player, onAct }: { player: ConnectedPlayer; onAct: () => void }) {
   const { snapshot, online } = player
-  const activeSlots = snapshot.spellSlots.filter((s) => s.max > 0)
   const hpPct = snapshot.hp_max ? Math.min(100, Math.max(0, ((snapshot.hp_current ?? 0) / snapshot.hp_max) * 100)) : 0
   const down = snapshot.hp_current != null && snapshot.hp_current <= 0
   const hpBar = hpPct > 50 ? 'bg-emerald-500' : hpPct > 25 ? 'bg-amber-400' : 'bg-red-500'
@@ -51,8 +51,11 @@ function ConnectedPlayerRow({ player, onAct }: { player: ConnectedPlayer; onAct:
       )}
 
       {down && (
-        <span className="flex-shrink-0 text-[10px] uppercase tracking-wider text-red-400" title="Death saves">
-          ✓{snapshot.death_save_successes ?? 0} ✗{snapshot.death_save_failures ?? 0}
+        <span
+          className={`flex-shrink-0 text-[10px] uppercase tracking-wider ${(snapshot.death_save_failures ?? 0) >= 3 ? 'text-red-500' : (snapshot.death_save_successes ?? 0) >= 3 ? 'text-emerald-400' : 'text-red-400'}`}
+          title="Death saves"
+        >
+          {(snapshot.death_save_failures ?? 0) >= 3 ? 'Dead' : (snapshot.death_save_successes ?? 0) >= 3 ? 'Stable' : 'Dying'} ✓{snapshot.death_save_successes ?? 0} ✗{snapshot.death_save_failures ?? 0}
         </span>
       )}
 
@@ -68,19 +71,21 @@ function ConnectedPlayerRow({ player, onAct }: { player: ConnectedPlayer; onAct:
         <span className="flex-shrink-0 text-red-300" title="Exhaustion level">Exh {snapshot.exhaustion}</span>
       )}
 
-      {activeSlots.length > 0 && (
-        <div className="flex-shrink-0 flex items-center gap-1.5 text-slate-500">
-          {activeSlots.map((s) => (
-            <span key={s.level} title={`Level ${s.level} slots`}>{s.current}/{s.max}<span className="text-slate-700">L{s.level}</span></span>
-          ))}
-        </div>
-      )}
 
       {snapshot.conditions.length > 0 && (
         <div className="flex flex-wrap gap-1 flex-1 min-w-[80px]">
           {snapshot.conditions.map((c) => <ConditionBadge key={c} condition={c} />)}
         </div>
       )}
+
+      <div className="w-full pl-5">
+        <ResourceStrip snapshot={snapshot} dense />
+        {(snapshot.companions ?? []).filter((c) => c.active).length > 0 && (
+          <p className="text-[11px] text-teal-300/80 mt-1">
+            {(snapshot.companions ?? []).filter((c) => c.active).map((c) => `${c.name}${c.hp_max != null ? ` ${c.hp_current ?? 0}/${c.hp_max}` : ''}`).join(' · ')}
+          </p>
+        )}
+      </div>
 
       <button
         onClick={onAct}

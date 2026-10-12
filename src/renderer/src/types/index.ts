@@ -177,7 +177,7 @@ export type VfxPending =
   | { kind: 'zone'; type: ZoneType; center: { x: number; y: number } | null }
   | null
 
-export type Page = 'library' | 'party' | 'maps' | 'encounter' | 'timeline'
+export type Page = 'library' | 'party' | 'maps' | 'encounter' | 'timeline' | 'loot' | 'homebrew' | 'log'
 
 export type Condition =
   'Blinded' | 'Charmed' | 'Deafened' | 'Exhausted' | 'Frightened' |
@@ -199,7 +199,45 @@ export interface Combatant {
   xp: number
   effects: CombatEffect[]
   concentrating: boolean
-  clientId: string | null // the linked player's sync identity, for party combatants
+  concentration_spell: string
+  clientId: string | null // the linked player's sync identity (or a companion's owner), for party combatants
+  // Boss-fight tracking
+  legendary_max: number
+  legendary_current: number
+  legres_max: number
+  legres_current: number
+  recharges: RechargeAbility[]
+  is_lair: boolean // a "lair actions" turn on initiative 20, not a creature
+  companion_id: string | null // set for a player's familiar / companion / summon
+  owner_client_id: string | null
+  statblock: Statblock | null
+}
+
+// An ability that comes back on a die roll ("Fire Breath (Recharge 5-6)").
+export interface RechargeAbility {
+  id: string
+  name: string
+  min: number
+  ready: boolean
+}
+
+// The reference text for a monster, shown on its row during a fight.
+export interface Statblock {
+  size?: string
+  type?: string
+  speed?: string
+  str?: number; dex?: number; con?: number; int?: number; wis?: number; cha?: number
+  saves?: string
+  skills?: string
+  senses?: string
+  languages?: string
+  resistances?: string
+  traits?: string
+  actions?: string
+  reactions?: string
+  legendary?: string
+  lair?: string
+  notes?: string
 }
 
 // A timed effect on a creature ("Hold Person — 10 rounds"); counts down at the
@@ -210,13 +248,75 @@ export interface CombatEffect {
   rounds: number | null // null = until removed by hand
 }
 
+export interface ConcentrationCheck {
+  combatantId: string
+  name: string
+  spell: string
+  dc: number
+  clientId: string | null // set when the creature is a connected player (their own app prompts them)
+}
+
 export interface EncounterState {
   isActive: boolean
   round: number
   currentIndex: number
   combatants: Combatant[]
+  undo: { canUndo: boolean; canRedo: boolean; undoLabel: string; redoLabel: string }
   expired?: { name: string; label: string }[] // effects that ran out on the last turn change
+  recharged?: { name: string; ability: string; roll: number; ready: boolean }[] // recharge rolls at the start of a turn
+  lair?: string | null // set when the turn that just began is a lair-action entry
   note?: string // transient message from the last action (e.g. a concentration save prompt)
+  concentrationCheck?: ConcentrationCheck
+}
+
+// What goes into a saved encounter and what launches a fight.
+export interface EncounterEntry {
+  name: string
+  count: number
+  hp_max?: number
+  ac?: number
+  init_mod?: number
+  xp?: number
+  cr?: string
+  legendary_actions?: number
+  legendary_resistances?: number
+  recharges?: { name: string; min: number }[]
+  lair?: boolean
+  statblock?: Statblock | null
+}
+
+export interface SavedEncounter {
+  id: string
+  name: string
+  notes: string
+  entries: EncounterEntry[]
+  created_at: string
+  updated_at: string
+}
+
+export type ItemRarity = 'common' | 'uncommon' | 'rare' | 'very rare' | 'legendary' | 'artifact'
+
+export interface CustomItem {
+  id: string
+  name: string
+  category: string
+  rarity: ItemRarity
+  attunement: boolean
+  description: string
+  damage: string
+  damage_type: string
+  value_gp: number
+}
+
+export type LogKind = 'combat' | 'turn' | 'damage' | 'heal' | 'death' | 'condition' | 'roll' | 'boss' | 'reward' | 'table' | 'player'
+
+export interface LogEntry {
+  id: number
+  at: number
+  kind: LogKind
+  text: string
+  group_id: string
+  data: unknown
 }
 
 export interface MonsterTemplate {
@@ -228,6 +328,11 @@ export interface MonsterTemplate {
   cr: string
   xp: number
   notes: string
+  legendary_actions: number
+  legendary_resistances: number
+  recharges: { name: string; min: number }[]
+  lair: boolean
+  statblock: Statblock | null
 }
 
 export interface MapToken {
@@ -273,6 +378,23 @@ export interface PlayerSnapshot {
   spellSlots: { level: number; max: number; current: number }[]
   resources: { id: string; name: string; current: number; max: number; color: string }[]
   conditions: Condition[]
+  hit_dice_current?: number | null
+  hit_dice_total?: number | null
+  hit_die_size?: string
+  speed?: number | null
+  features?: { name: string; current: number; max: number; recharge: string }[]
+  companions?: PlayerCompanion[]
+}
+
+export interface PlayerCompanion {
+  id: string
+  name: string
+  kind: string
+  hp_current: number | null
+  hp_max: number | null
+  ac: number | null
+  init_mod: number
+  active: boolean
 }
 
 export interface ConnectedPlayer {
@@ -295,11 +417,15 @@ export type DmCommand =
   | { cmd: 'give_item'; name: string; quantity: number; notes?: string; damage?: string; damage_type?: string }
   | { cmd: 'roll_request'; rollId: string; label: string; kind: RollKind; ability?: string; skill?: string; dc?: number | null }
   | { cmd: 'notice'; text: string }
+  | { cmd: 'companion_hp'; companionId: string; amount: number }
+  | { cmd: 'stabilize' }
+  | { cmd: 'drop_concentration' }
 
 export interface RollResult {
   rollId: string
   clientId: string
   playerName: string
+  kind: string
   label: string
   total: number
   natural: number

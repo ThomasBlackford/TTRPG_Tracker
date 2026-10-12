@@ -1,4 +1,4 @@
-import type { Card, CardType, PartyMember, Resource, Reputation, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState, MonsterTemplate, MapToken, DmCommand } from './index'
+import type { Card, CardType, PartyMember, Resource, Reputation, SearchResult, MapData, MapPin, Combatant, EncounterState, SceneData, TimelineEvent, PartySyncState, MonsterTemplate, MapToken, DmCommand, EncounterEntry, SavedEncounter, CustomItem, LogEntry } from './index'
 
 interface ElectronAPI {
   cards: {
@@ -72,11 +72,30 @@ interface ElectronAPI {
     addMonster: (data: {
       name: string; hp_max?: number; ac?: number; initiative?: number; init_mod?: number; xp?: number
       count?: number; rollInitiative?: boolean; grouped?: boolean
+      legendary_actions?: number; legendary_resistances?: number; recharges?: { name: string; min: number }[]
+      lair?: boolean; statblock?: unknown
     }) => Promise<EncounterState>
-    applyHp: (id: string, amount: number, mode?: 'normal' | 'half' | 'double') => Promise<EncounterState>
+    addLair: (ownerName?: string) => Promise<EncounterState>
+    requestInitiative: (opts?: { all?: boolean }) => Promise<{ asked: number }>
+    resolveConcentration: (id: string, passed: boolean) => Promise<EncounterState>
+    stabilize: (id: string) => Promise<EncounterState>
+    spendLegendary: (id: string, cost?: number) => Promise<EncounterState>
+    useLegendaryResistance: (id: string) => Promise<EncounterState>
+    setRecharge: (id: string, rechargeId: string, ready: boolean) => Promise<EncounterState>
+    undo: () => Promise<EncounterState>
+    redo: () => Promise<EncounterState>
+    saveCurrent: (name: string) => Promise<{ id: string; entries: number }>
+    launchSaved: (id: string) => Promise<EncounterState>
+    launchEntries: (entries: EncounterEntry[]) => Promise<EncounterState>
+    summary: () => Promise<{ title: string; body: string }>
+    applyHp: (id: string, amount: number, mode?: 'normal' | 'half' | 'double', sourceId?: string | null) => Promise<EncounterState>
     rollMonsterInitiative: (opts: { force?: boolean; grouped?: boolean }) => Promise<EncounterState>
     addPartyMember: (memberId: string) => Promise<EncounterState>
-    updateCombatant: (id: string, changes: Partial<Pick<Combatant, 'hp_current' | 'hp_max' | 'conditions' | 'effects' | 'concentrating' | 'initiative' | 'init_mod' | 'xp' | 'name' | 'ac'>>) => Promise<EncounterState>
+    updateCombatant: (
+      id: string,
+      changes: Partial<Pick<Combatant, 'hp_current' | 'hp_max' | 'conditions' | 'effects' | 'concentrating' | 'concentration_spell' | 'initiative' | 'init_mod' | 'xp' | 'name' | 'ac' | 'legendary_max' | 'legendary_current' | 'legres_max' | 'legres_current' | 'recharges'>>,
+      label?: string
+    ) => Promise<EncounterState>
     removeCombatant: (id: string) => Promise<EncounterState>
     nextTurn: () => Promise<EncounterState>
     prevTurn: () => Promise<EncounterState>
@@ -86,6 +105,31 @@ interface ElectronAPI {
     list: () => Promise<MonsterTemplate[]>
     save: (m: Partial<MonsterTemplate> & { name: string }) => Promise<MonsterTemplate>
     delete: (id: string) => Promise<void>
+  }
+  items: {
+    list: () => Promise<CustomItem[]>
+    save: (item: Partial<CustomItem> & { name: string }) => Promise<CustomItem>
+    delete: (id: string) => Promise<void>
+  }
+  savedEncounters: {
+    list: () => Promise<SavedEncounter[]>
+    save: (enc: { id?: string; name: string; notes?: string; entries: EncounterEntry[] }) => Promise<SavedEncounter>
+    delete: (id: string) => Promise<void>
+  }
+  homebrew: {
+    export: () => Promise<{ ok: boolean; canceled?: boolean; error?: string; path?: string; monsters?: number; items?: number }>
+    import: () => Promise<{ ok: boolean; canceled?: boolean; error?: string; added?: number; updated?: number; skipped?: number; monsters?: number; items?: number }>
+  }
+  log: {
+    list: (opts?: { limit?: number; groupId?: string }) => Promise<LogEntry[]>
+    clear: () => Promise<void>
+    text: (groupId?: string) => Promise<string>
+    toTimeline: (groupId: string) => Promise<{ ok: boolean; error?: string; title?: string }>
+    onAppend: (cb: (entry: LogEntry) => void) => () => void
+  }
+  mapShare: {
+    set: (mapId: string | null) => Promise<{ ok: boolean; error?: string; sharing: string | null }>
+    status: () => Promise<{ sharing: string | null }>
   }
   tokens: {
     list: (mapId: string) => Promise<MapToken[]>

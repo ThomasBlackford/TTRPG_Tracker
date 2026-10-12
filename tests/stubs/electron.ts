@@ -38,4 +38,8 @@ export class BrowserWindow {
   isDestroyed() { return false }
 }
 
+export const nativeImage = {
+  createFromPath: () => ({ isEmpty: () => true, getSize: () => ({ width: 0, height: 0 }), resize() { return this }, toJPEG: () => Buffer.alloc(0) })
+}
+
 export const is = { dev: false }

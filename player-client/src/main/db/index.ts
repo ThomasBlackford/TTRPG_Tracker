@@ -383,4 +383,25 @@ function runMigrations(): void {
     add('dm_join_code', "TEXT NOT NULL DEFAULT ''")
     d.prepare('UPDATE schema_version SET version = 10').run()
   }
+
+  if (v < 11) {
+    // Companions: a familiar, animal companion, mount or summon with its own
+    // hit points. The DM's initiative tracker gives each one a turn.
+    d.exec(`
+      CREATE TABLE IF NOT EXISTS companions (
+        id         TEXT PRIMARY KEY,
+        name       TEXT NOT NULL,
+        kind       TEXT NOT NULL DEFAULT 'companion',
+        hp_current INTEGER,
+        hp_max     INTEGER,
+        ac         INTEGER,
+        init_mod   INTEGER NOT NULL DEFAULT 0,
+        speed      TEXT NOT NULL DEFAULT '',
+        notes      TEXT NOT NULL DEFAULT '',
+        active     INTEGER NOT NULL DEFAULT 1,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      );
+    `)
+    d.prepare('UPDATE schema_version SET version = 11').run()
+  }
 }

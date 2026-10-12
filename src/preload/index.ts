@@ -30,6 +30,35 @@ const api = {
     save: (m: unknown) => ipcRenderer.invoke('monsters:save', m),
     delete: (id: string) => ipcRenderer.invoke('monsters:delete', id)
   },
+  items: {
+    list: () => ipcRenderer.invoke('items:list'),
+    save: (item: unknown) => ipcRenderer.invoke('items:save', item),
+    delete: (id: string) => ipcRenderer.invoke('items:delete', id)
+  },
+  savedEncounters: {
+    list: () => ipcRenderer.invoke('savedEncounters:list'),
+    save: (enc: unknown) => ipcRenderer.invoke('savedEncounters:save', enc),
+    delete: (id: string) => ipcRenderer.invoke('savedEncounters:delete', id)
+  },
+  homebrew: {
+    export: () => ipcRenderer.invoke('homebrew:export'),
+    import: () => ipcRenderer.invoke('homebrew:import')
+  },
+  log: {
+    list: (opts?: unknown) => ipcRenderer.invoke('log:list', opts),
+    clear: () => ipcRenderer.invoke('log:clear'),
+    text: (groupId?: string) => ipcRenderer.invoke('log:text', groupId),
+    toTimeline: (groupId: string) => ipcRenderer.invoke('log:toTimeline', groupId),
+    onAppend: (cb: (entry: unknown) => void) => {
+      const handler = (_e: IpcRendererEvent, entry: unknown) => cb(entry)
+      ipcRenderer.on('log:append', handler)
+      return () => ipcRenderer.removeListener('log:append', handler)
+    }
+  },
+  mapShare: {
+    set: (mapId: string | null) => ipcRenderer.invoke('mapShare:set', mapId),
+    status: () => ipcRenderer.invoke('mapShare:status')
+  },
   tokens: {
     list: (mapId: string) => ipcRenderer.invoke('tokens:list', mapId),
     save: (token: unknown) => ipcRenderer.invoke('tokens:save', token),
@@ -142,12 +171,25 @@ const api = {
     end: () => ipcRenderer.invoke('encounter:end'),
     addMonster: (data: unknown) => ipcRenderer.invoke('encounter:addMonster', data),
     addPartyMember: (memberId: string) => ipcRenderer.invoke('encounter:addPartyMember', memberId),
-    updateCombatant: (id: string, changes: unknown) => ipcRenderer.invoke('encounter:updateCombatant', id, changes),
+    updateCombatant: (id: string, changes: unknown, label?: string) => ipcRenderer.invoke('encounter:updateCombatant', id, changes, label),
     removeCombatant: (id: string) => ipcRenderer.invoke('encounter:removeCombatant', id),
     nextTurn: () => ipcRenderer.invoke('encounter:nextTurn'),
-    applyHp: (id: string, amount: number, mode?: string) => ipcRenderer.invoke('encounter:applyHp', id, amount, mode),
+    applyHp: (id: string, amount: number, mode?: string, sourceId?: string | null) => ipcRenderer.invoke('encounter:applyHp', id, amount, mode, sourceId),
     rollMonsterInitiative: (opts: unknown) => ipcRenderer.invoke('encounter:rollMonsterInitiative', opts),
     prevTurn: () => ipcRenderer.invoke('encounter:prevTurn'),
+    addLair: (ownerName?: string) => ipcRenderer.invoke('encounter:addLair', ownerName),
+    requestInitiative: (opts?: unknown) => ipcRenderer.invoke('encounter:requestInitiative', opts),
+    resolveConcentration: (id: string, passed: boolean) => ipcRenderer.invoke('encounter:resolveConcentration', id, passed),
+    stabilize: (id: string) => ipcRenderer.invoke('encounter:stabilize', id),
+    spendLegendary: (id: string, cost?: number) => ipcRenderer.invoke('encounter:spendLegendary', id, cost),
+    useLegendaryResistance: (id: string) => ipcRenderer.invoke('encounter:useLegendaryResistance', id),
+    setRecharge: (id: string, rechargeId: string, ready: boolean) => ipcRenderer.invoke('encounter:setRecharge', id, rechargeId, ready),
+    undo: () => ipcRenderer.invoke('encounter:undo'),
+    redo: () => ipcRenderer.invoke('encounter:redo'),
+    saveCurrent: (name: string) => ipcRenderer.invoke('encounter:saveCurrent', name),
+    launchSaved: (id: string) => ipcRenderer.invoke('encounter:launchSaved', id),
+    launchEntries: (entries: unknown) => ipcRenderer.invoke('encounter:launchEntries', entries),
+    summary: () => ipcRenderer.invoke('encounter:summary'),
     onUpdate: (cb: (state: unknown) => void) => {
       const handler = (_e: IpcRendererEvent, state: unknown) => cb(state)
       ipcRenderer.on('encounter:update', handler)

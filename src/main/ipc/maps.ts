@@ -4,6 +4,7 @@ import { getDb } from '../db'
 import { v4 as uuidv4 } from 'uuid'
 import { copyFileSync, mkdirSync, existsSync, unlinkSync } from 'fs'
 import { join, basename, resolve, sep } from 'path'
+import { noteFog } from './mapShare'
 
 function getImagesDir(): string {
   return join(app.getPath('userData'), 'images')
@@ -144,11 +145,13 @@ export function registerMapHandlers(): void {
         .run(mapId, fogState.gridCols, fogState.gridRows, cellsJson, now)
     }
     pushToPlayer('maps:fogUpdate', { mapId, fogState })
+    noteFog(mapId, fogState, true)
   })
 
   ipcMain.handle('maps:deleteFog', (_e, mapId: string) => {
     getDb().prepare('DELETE FROM map_fog WHERE map_id = ?').run(mapId)
     pushToPlayer('maps:fogUpdate', { mapId, fogState: null })
+    noteFog(mapId, null, true)
   })
 
   // Broadcast-only fog update (no DB write) — used while the DM is actively
@@ -157,6 +160,7 @@ export function registerMapHandlers(): void {
   // maps:saveFog on pointer-up.
   ipcMain.handle('maps:pushFogLive', (_e, data: { mapId: string; fogState: unknown }) => {
     pushToPlayer('maps:fogUpdate', data)
+    noteFog(data.mapId, data.fogState as { gridCols: number; gridRows: number; cells: number[] } | null, false)
   })
 
   // --- Session-only push channels (no DB) ---

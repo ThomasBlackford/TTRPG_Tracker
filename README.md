@@ -32,6 +32,7 @@ Start **Player Sync** on the Party page and players connect with the address and
 ### Maps
 - Fog of war, ruler, grid, spotlight and a large library of animated effects for the player-facing display
 - **Creature tokens** that follow the initiative order (the current turn glows), drag to move, hide to stage an ambush, one click to place the whole encounter
+- **Stylized effects** for the player display — eleven bursts (fireball, frost, poison, heal, lightning, impact, rage, counterspell, radiant, necrotic, critical hit), four rays, eight lingering zones and rain/storm weather. Hand-drawn look: flat-shaded, inked shapes with snappy timing, hit-frames and screen shake. They scale with map zoom and are drawn procedurally on canvas (no image or video assets)
 
 ### Library & timeline
 Cards for NPCs, items, locations, lore and factions (full-text search with `Ctrl+K`), per-member faction reputation, and a campaign timeline. Cards and images can be pushed to the player display as scenes and handouts.
@@ -86,6 +87,7 @@ cd player-client && npm install && npm run dev   # the player app
 npm run typecheck    # both TypeScript projects
 npm test             # unit + integration tests (see below)
 npm run dist         # build the Windows installer into dist/
+npm run fx:preview   # contact-sheet viewer for the visual effects (see tools/fx-preview)
 ```
 
 ### Tests
@@ -95,6 +97,7 @@ npm run dist         # build the Windows installer into dist/
 - dice parsing/rolling, XP tables, and the encounter difficulty maths
 - the backup container (round-trip, truncation, hostile file names)
 - the **real DM server against the real player sync client** — join codes, DM commands, roll results, reconnects, junk frames, a busy port
+- every visual effect, scrubbed through its whole lifetime on a validating fake canvas (no NaN coordinates, negative radii, unbalanced save/restore or leaked blend modes)
 - the real IPC handlers and SQLite migrations, run inside Electron's own Node runtime (the native database module is built for Electron)
 
 ---

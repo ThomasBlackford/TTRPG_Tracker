@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { X, Plus, Minus, Skull, Dices, Sparkles, Timer } from 'lucide-react'
+import { X, Plus, Minus, Skull, Dices, Sparkles, Timer, BookOpen, Crown, ChevronDown, ChevronRight, Landmark, HeartPulse, PawPrint } from 'lucide-react'
 import type { Combatant, CombatEffect, Condition, EncounterState, PlayerSnapshot } from '../../types'
 import { ConditionBadge, ConditionPicker } from './ConditionBadge'
+import { ResourceStrip, summarize } from './ResourceStrip'
+import { StatblockView, hasStatblockContent } from './StatblockView'
 
 type DamageMode = 'normal' | 'half' | 'double'
 
@@ -10,12 +12,25 @@ interface Props {
   rank: number
   isCurrent: boolean
   live?: PlayerSnapshot & { online: boolean } // the linked player's latest synced sheet, for party combatants
-  onUpdate: (id: string, changes: Partial<Combatant>) => Promise<EncounterState>
-  onApplyHp: (id: string, amount: number, mode: DamageMode) => Promise<void>
+  ownerName?: string // for a companion: whose it is
+  attackerId?: string | null // whoever is acting right now — recorded as the source of damage in the log
+  onUpdate: (id: string, changes: Partial<Combatant>, label?: string) => Promise<EncounterState>
+  onApplyHp: (id: string, amount: number, mode: DamageMode, sourceId?: string | null) => Promise<void>
   onRemove: (id: string) => void
+  onState: (s: EncounterState) => void // for actions that return a fresh encounter
 }
 
-export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApplyHp, onRemove }: Props) {
+function Pips({ n, max, tone }: { n: number; max: number; tone: string }) {
+  return (
+    <span className="inline-flex gap-[3px]">
+      {Array.from({ length: max }, (_, i) => (
+        <span key={i} className={`w-2 h-2 border ${i < n ? tone : 'border-slate-700'}`} />
+      ))}
+    </span>
+  )
+}
+
+export function CombatantRow({ combatant, rank, isCurrent, live, ownerName, attackerId, onUpdate, onApplyHp, onRemove, onState }: Props) {
   const [hpCurrent, setHpCurrent] = useState(String(combatant.hp_current ?? ''))
   const [hpDelta, setHpDelta] = useState('')
   const [mode, setMode] = useState<DamageMode>('normal')
@@ -23,6 +38,10 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
   const [showEffectForm, setShowEffectForm] = useState(false)
   const [effectLabel, setEffectLabel] = useState('')
   const [effectRounds, setEffectRounds] = useState('')
+  const [showStatblock, setShowStatblock] = useState(false)
+  const [showResources, setShowResources] = useState(false)
+  const [askSpell, setAskSpell] = useState(false)
+  const [spell, setSpell] = useState('')
   const pickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -38,10 +57,37 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
     return () => document.removeEventListener('mousedown', onDown)
   }, [showConditions])
 
+  const isCompanion = !!combatant.companion_id
   const isParty = combatant.type === 'party'
   const isMonster = combatant.type === 'monster'
   const isDown = combatant.hp_current != null && combatant.hp_current <= 0
-  const playerLive = isParty && !!combatant.clientId && !!live?.online
+  const playerLive = isParty && !isCompanion && !!combatant.clientId && !!live?.online
+  const stable = !!live && (live.death_save_successes ?? 0) >= 3
+  const dead = !!live && (live.death_save_failures ?? 0) >= 3
+  const hasBoss = combatant.legendary_max > 0 || combatant.legres_max > 0 || combatant.recharges.length > 0
+  const showSheet = hasStatblockContent(combatant.statblock)
+
+  // ── Lair actions: not a creature, just a reminder that the place acts ────
+  if (combatant.is_lair) {
+    return (
+      <div className={`relative border transition-colors ${isCurrent ? 'bg-amber-500/10 border-amber-500/50' : 'bg-surface-raised border-border'}`}>
+        {isCurrent && <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: 'var(--gradient-brand)' }} />}
+        <div className="flex items-center gap-3 px-3 py-2.5">
+          <div className={`w-7 h-7 flex-shrink-0 flex items-center justify-center text-xs font-bold ${isCurrent ? 'bg-amber-500 text-white' : 'bg-surface-overlay text-slate-400'}`}>{rank}</div>
+          <Landmark size={14} className="text-purple-300 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-purple-200 truncate">{combatant.name}</p>
+            <p className="text-[10px] uppercase tracking-wider text-slate-500">
+              {isCurrent ? 'Lair actions — the lair acts now' : 'Lair actions · initiative 20 (losing ties)'}
+            </p>
+          </div>
+          <button onClick={() => onRemove(combatant.id)} className="p-1 text-slate-600 hover:text-red-400 hover:bg-red-500/10 transition-colors" title="Remove">
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   function commitHp() {
     const val = parseInt(hpCurrent)
@@ -52,7 +98,7 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
   function apply(sign: 1 | -1) {
     const amount = Math.abs(parseInt(hpDelta))
     if (!amount) return
-    onApplyHp(combatant.id, sign * amount, sign < 0 ? mode : 'normal')
+    onApplyHp(combatant.id, sign * amount, sign < 0 ? mode : 'normal', sign < 0 ? attackerId : null)
     setHpDelta('')
     if (sign < 0) setMode('normal')
   }
@@ -68,7 +114,7 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
   }
 
   function rollInitiative() {
-    onUpdate(combatant.id, { initiative: Math.floor(Math.random() * 20) + 1 + combatant.init_mod })
+    onUpdate(combatant.id, { initiative: Math.floor(Math.random() * 20) + 1 + combatant.init_mod }, `Roll initiative for ${combatant.name}`)
   }
 
   function addEffect() {
@@ -89,11 +135,28 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
     onUpdate(combatant.id, { effects: combatant.effects.filter((e) => e.id !== id) })
   }
 
+  function toggleConcentration() {
+    if (combatant.concentrating) {
+      onUpdate(combatant.id, { concentrating: false, concentration_spell: '' })
+      return
+    }
+    // Players' concentration comes from their sheet; for everyone else, name the spell.
+    onUpdate(combatant.id, { concentrating: true })
+    setAskSpell(true)
+  }
+
+  function saveSpell() {
+    onUpdate(combatant.id, { concentrating: true, concentration_spell: spell.trim() })
+    setSpell('')
+    setAskSpell(false)
+  }
+
   const hpPct =
     combatant.hp_max && combatant.hp_current != null
       ? Math.max(0, Math.min(100, (combatant.hp_current / combatant.hp_max) * 100))
       : null
   const hpBar = hpPct == null ? '' : hpPct > 50 ? 'bg-emerald-500' : hpPct > 25 ? 'bg-amber-400' : 'bg-red-500'
+  const sum = live ? summarize(live) : null
 
   return (
     <div
@@ -114,20 +177,43 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 min-w-0">
-            <span className={`text-sm font-medium truncate ${isParty ? 'text-sky-300' : 'text-rose-300'}`}>
+            {isCompanion && <PawPrint size={12} className="text-teal-300 flex-shrink-0" />}
+            <span className={`text-sm font-medium truncate ${isCompanion ? 'text-teal-300' : isParty ? 'text-sky-300' : 'text-rose-300'}`}>
               {combatant.name}
             </span>
+            {isCompanion && ownerName && <span className="text-[10px] text-slate-500 flex-shrink-0 truncate">{ownerName}'s</span>}
             {isDown && <Skull size={12} className="text-slate-400 flex-shrink-0" />}
             {combatant.ac != null && <span className="text-xs text-slate-500 flex-shrink-0">AC {combatant.ac}</span>}
-            {isParty && live && !live.online && (
+            {isParty && !isCompanion && live && !live.online && (
               <span className="text-[10px] uppercase tracking-wider text-slate-600 flex-shrink-0">offline</span>
+            )}
+            {combatant.legendary_max > 0 && <Crown size={12} className="text-amber-300 flex-shrink-0" aria-label="Legendary creature" />}
+            {showSheet && (
+              <button
+                onClick={() => setShowStatblock((v) => !v)}
+                className={`flex-shrink-0 transition-colors ${showStatblock ? 'text-amber-300' : 'text-slate-600 hover:text-slate-300'}`}
+                title="Stat block"
+              >
+                <BookOpen size={12} />
+              </button>
             )}
           </div>
 
-          {isDown && isParty && live && (
-            <p className="text-[10px] uppercase tracking-wider text-red-400 mt-0.5">
-              Death saves ✓{live.death_save_successes ?? 0} ✗{live.death_save_failures ?? 0}
-            </p>
+          {isDown && isParty && !isCompanion && live && (
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+              <p className={`text-[10px] uppercase tracking-wider ${dead ? 'text-red-500' : stable ? 'text-emerald-400' : 'text-red-400'}`}>
+                {dead ? 'Dead' : stable ? 'Stable' : 'Dying'} · saves ✓{live.death_save_successes ?? 0} ✗{live.death_save_failures ?? 0}
+              </p>
+              {!dead && !stable && live.online && (
+                <button
+                  onClick={async () => onState(await window.api.encounter.stabilize(combatant.id))}
+                  className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] uppercase tracking-wider border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition-colors"
+                  title="Stabilise them (Spare the Dying, a Medicine check)"
+                >
+                  <HeartPulse size={10} /> Stabilise
+                </button>
+              )}
+            </div>
           )}
 
           <div className="relative flex items-center gap-1 mt-1 flex-wrap" ref={pickerRef}>
@@ -186,11 +272,112 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
               <button onClick={addEffect} className="text-xs text-amber-400 hover:text-amber-300 px-1">Add</button>
             </div>
           )}
+
+          {combatant.concentrating && !askSpell && (
+            <p className="text-[10px] text-purple-300 mt-1 flex items-center gap-1">
+              <Sparkles size={9} /> Concentrating{combatant.concentration_spell ? ` on ${combatant.concentration_spell}` : ''}
+            </p>
+          )}
+          {askSpell && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <input
+                className="input text-xs py-1 flex-1 min-w-0"
+                placeholder="Concentrating on… (optional)"
+                value={spell}
+                onChange={(e) => setSpell(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') saveSpell(); if (e.key === 'Escape') setAskSpell(false) }}
+                autoFocus
+              />
+              <button onClick={saveSpell} className="text-xs text-amber-400 hover:text-amber-300 px-1">Set</button>
+            </div>
+          )}
+
+          {/* Legendary actions, resistances and recharge abilities */}
+          {hasBoss && (
+            <div className="flex items-center gap-x-4 gap-y-1.5 mt-1.5 flex-wrap text-[11px]">
+              {combatant.legendary_max > 0 && (
+                <span className="inline-flex items-center gap-1.5" title="Legendary actions — refresh at the start of its turn">
+                  <span className="text-amber-300/80 uppercase tracking-wider text-[10px]">Legendary</span>
+                  <Pips n={combatant.legendary_current} max={combatant.legendary_max} tone="border-amber-400 bg-amber-400" />
+                  <button
+                    disabled={combatant.legendary_current <= 0}
+                    onClick={async () => onState(await window.api.encounter.spendLegendary(combatant.id, 1))}
+                    className="px-1.5 py-0.5 border border-border text-slate-400 hover:text-white hover:border-amber-500/60 transition-colors disabled:opacity-30"
+                  >
+                    Use 1
+                  </button>
+                  {combatant.legendary_current >= 2 && (
+                    <button
+                      onClick={async () => onState(await window.api.encounter.spendLegendary(combatant.id, 2))}
+                      className="px-1.5 py-0.5 border border-border text-slate-400 hover:text-white hover:border-amber-500/60 transition-colors"
+                    >
+                      Use 2
+                    </button>
+                  )}
+                </span>
+              )}
+              {combatant.legres_max > 0 && (
+                <span className="inline-flex items-center gap-1.5" title="Legendary Resistance — turns a failed save into a success">
+                  <span className="text-purple-300/80 uppercase tracking-wider text-[10px]">Resist</span>
+                  <Pips n={combatant.legres_current} max={combatant.legres_max} tone="border-purple-400 bg-purple-400" />
+                  <button
+                    disabled={combatant.legres_current <= 0}
+                    onClick={async () => onState(await window.api.encounter.useLegendaryResistance(combatant.id))}
+                    className="px-1.5 py-0.5 border border-border text-slate-400 hover:text-white hover:border-purple-500/60 transition-colors disabled:opacity-30"
+                  >
+                    Use
+                  </button>
+                </span>
+              )}
+              {combatant.recharges.map((r) => (
+                <button
+                  key={r.id}
+                  onClick={async () => onState(await window.api.encounter.setRecharge(combatant.id, r.id, !r.ready))}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 border transition-colors ${
+                    r.ready ? 'border-emerald-500/50 text-emerald-300 bg-emerald-500/10 hover:bg-emerald-500/20' : 'border-border text-slate-500 hover:text-slate-300'
+                  }`}
+                  title={r.ready ? 'Ready — click when used' : `Spent — rolls to recharge (${r.min}${r.min < 6 ? '–6' : ''}) at the start of its turn. Click to mark ready.`}
+                >
+                  <Dices size={10} /> {r.name} <span className="opacity-60">{r.min}{r.min < 6 ? '–6' : ''}</span>
+                  <span className="uppercase tracking-wider text-[9px]">{r.ready ? 'ready' : 'spent'}</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* A player's slots, hit dice and resources */}
+          {live && !isCompanion && sum && (sum.slotsMax > 0 || sum.hitDice || live.resources.length > 0 || (live.features?.length ?? 0) > 0) && (
+            <div className="mt-1.5">
+              <button
+                onClick={() => setShowResources((v) => !v)}
+                className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                {showResources ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
+                <span className={sum.low ? 'text-red-300' : ''}>
+                  {sum.slotsMax > 0 && <>Slots {sum.slotsLeft}/{sum.slotsMax}</>}
+                  {sum.slotsMax > 0 && sum.hitDice && ' · '}
+                  {sum.hitDice && <>HD {sum.hitDice}</>}
+                  {sum.slotsMax === 0 && !sum.hitDice && 'Resources'}
+                </span>
+              </button>
+              {showResources && (
+                <div className="mt-1.5 pl-3.5">
+                  <ResourceStrip snapshot={live} dense />
+                </div>
+              )}
+            </div>
+          )}
+
+          {showStatblock && combatant.statblock && (
+            <div className="mt-2.5 p-3 border border-border bg-surface-base/60 max-h-72 overflow-y-auto">
+              <StatblockView statblock={combatant.statblock} />
+            </div>
+          )}
         </div>
 
         {/* Concentration */}
         <button
-          onClick={() => onUpdate(combatant.id, { concentrating: !combatant.concentrating })}
+          onClick={toggleConcentration}
           title={combatant.concentrating ? 'Concentrating — taking damage prompts a save. Click to drop.' : 'Mark as concentrating'}
           className={`flex-shrink-0 transition-colors ${combatant.concentrating ? 'text-purple-300' : 'text-slate-700 hover:text-purple-400'}`}
         >
@@ -211,12 +398,12 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
                 title="Current HP"
               />
             ) : (
-              <span className="text-xs text-slate-200 w-12 text-center" title={playerLive ? "Live from the player's sheet" : 'Last known'}>
+              <span className="text-xs text-slate-200 w-12 text-center" title={playerLive || isCompanion ? "Live from the player's sheet" : 'Last known'}>
                 {combatant.hp_current ?? '—'}
               </span>
             )}
             <span className="text-xs text-slate-600">/ {combatant.hp_max ?? '—'}</span>
-            {live && live.hp_temp > 0 && <span className="text-[10px] text-sky-400">+{live.hp_temp}</span>}
+            {live && live.hp_temp > 0 && !isCompanion && <span className="text-[10px] text-sky-400">+{live.hp_temp}</span>}
           </div>
           {hpPct != null && (
             <div className="h-1 bg-surface-base overflow-hidden">
@@ -266,7 +453,7 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
         {/* Initiative */}
         <div className="flex flex-col items-center flex-shrink-0 w-12">
           <div className="flex items-center gap-0.5">
-            {isMonster && (
+            {(isMonster || isCompanion) && (
               <button
                 onClick={rollInitiative}
                 title={`Roll d20 ${combatant.init_mod >= 0 ? '+' : ''}${combatant.init_mod}`}
@@ -279,7 +466,7 @@ export function CombatantRow({ combatant, rank, isCurrent, live, onUpdate, onApp
               {combatant.initiative ?? '—'}
             </span>
           </div>
-          {isMonster && (
+          {(isMonster || isCompanion) && (
             <span className="text-[9px] uppercase tracking-wider text-slate-600">
               {combatant.init_mod >= 0 ? '+' : ''}{combatant.init_mod}
             </span>

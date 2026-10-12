@@ -2,6 +2,7 @@ import { ipcMain } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '../db'
 import { getPresentationWin } from './maps'
+import { refreshShared } from './mapShare'
 
 interface TokenRow {
   id: string
@@ -28,7 +29,9 @@ function listTokens(mapId: string) {
 
 // The TV only ever gets tokens the DM hasn't hidden — a hidden token is how a
 // DM stages an ambush without the table seeing it on the map.
-function pushTokensToPlayers(mapId: string): void {
+export function pushTokensToPlayers(mapId: string): void {
+  // Players' own screens get the same visible tokens (when the map is shared).
+  refreshShared(mapId)
   const win = getPresentationWin()
   if (!win || win.isDestroyed()) return
   win.webContents.send('maps:tokensUpdate', {

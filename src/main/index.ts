@@ -13,6 +13,8 @@ import { registerTimelineHandlers } from './ipc/timeline'
 import { registerPartySyncHandlers } from './ipc/partySync'
 import { registerUpdaterHandlers } from './ipc/updater'
 import { registerBackupHandlers, runAutoBackup } from './ipc/backup'
+import { registerLibraryHandlers } from './ipc/library'
+import { registerMapShareHandlers } from './ipc/mapShare'
 import { stopServer } from './server'
 import { initAutoUpdater } from './updater'
 
@@ -97,6 +99,8 @@ if (!gotLock) {
     registerPartySyncHandlers()
     registerUpdaterHandlers()
     registerBackupHandlers()
+    registerLibraryHandlers()
+    registerMapShareHandlers()
     void runAutoBackup()
 
     createWindow()

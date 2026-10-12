@@ -11,6 +11,9 @@ import { PartyPage } from './pages/PartyPage'
 import { MapPage } from './pages/MapPage'
 import { EncounterPage } from './pages/EncounterPage'
 import { TimelinePage } from './pages/TimelinePage'
+import { LootPage } from './pages/LootPage'
+import { HomebrewPage } from './pages/HomebrewPage'
+import { LogPage } from './pages/LogPage'
 
 export function App() {
   const { currentPage } = useUIStore()
@@ -23,6 +26,9 @@ export function App() {
       {currentPage === 'maps'     && <MapPage />}
       {currentPage === 'encounter' && <EncounterPage />}
       {currentPage === 'timeline'  && <TimelinePage />}
+      {currentPage === 'loot'      && <LootPage />}
+      {currentPage === 'homebrew'  && <HomebrewPage />}
+      {currentPage === 'log'       && <LogPage />}
     </main>
   )
 

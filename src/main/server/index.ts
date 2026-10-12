@@ -24,6 +24,24 @@ export interface PlayerSnapshot {
   spellSlots: { level: number; max: number; current: number }[]
   resources: { id: string; name: string; current: number; max: number; color: string }[]
   conditions: string[]
+  // Added in 0.6 — older Companions simply don't send these.
+  hit_dice_current?: number | null
+  hit_dice_total?: number | null
+  hit_die_size?: string
+  speed?: number | null
+  features?: { name: string; current: number; max: number; recharge: string }[]
+  companions?: CompanionSnapshot[]
+}
+
+export interface CompanionSnapshot {
+  id: string
+  name: string
+  kind: string // familiar | companion | summon | mount
+  hp_current: number | null
+  hp_max: number | null
+  ac: number | null
+  init_mod: number
+  active: boolean // summoned into the fight / currently with the party
 }
 
 export interface ConnectedPlayer {
@@ -72,11 +90,15 @@ export type DmCommand =
   | { cmd: 'turn'; state: 'your_turn' | 'up_next'; round: number }
   | { cmd: 'handout'; title: string; text: string; imageDataUrl?: string }
   | { cmd: 'notice'; text: string }
+  | { cmd: 'companion_hp'; companionId: string; amount: number }
+  | { cmd: 'stabilize' }
+  | { cmd: 'drop_concentration' }
 
 export interface RollResult {
   rollId: string
   clientId: string
   playerName: string
+  kind: string // 'initiative' | 'death_save' | 'concentration' | '' — what the roll was for, when the player's app says
   label: string
   total: number
   natural: number
@@ -116,6 +138,14 @@ const commandLog: CommandAck[] = []
 
 let listener: (() => void) | null = null
 let snapshotListener: ((clientId: string, snapshot: PlayerSnapshot) => void) | null = null
+let rollListener: ((roll: RollResult) => void) | null = null
+let ackListener: ((ack: CommandAck) => void) | null = null
+let presenceListener: ((clientId: string, online: boolean, name: string) => void) | null = null
+
+// Messages every player should have the latest of — including one who joins
+// halfway through the night (the shared map, mostly). Keyed so a newer one
+// replaces the older.
+const sticky = new Map<string, string>()
 
 function notify(): void {
   listener?.()
@@ -130,6 +160,19 @@ export function onStateChange(cb: () => void): void {
 // members by hand. See ipc/partySync.ts.
 export function onSnapshot(cb: (clientId: string, snapshot: PlayerSnapshot) => void): void {
   snapshotListener = cb
+}
+
+export function onRollResult(cb: (roll: RollResult) => void): void {
+  rollListener = cb
+}
+
+export function onCommandAck(cb: (ack: CommandAck) => void): void {
+  ackListener = cb
+}
+
+// Fires when a player joins, drops, or comes back — for the session log.
+export function onPresence(cb: (clientId: string, online: boolean, name: string) => void): void {
+  presenceListener = cb
 }
 
 export function configureAuth(cfg: { requireCode: boolean; joinCode: string }): void {
@@ -163,7 +206,11 @@ function dropSocket(ws: WebSocket): void {
     if (socket === ws) {
       liveConnections.delete(clientId)
       const p = players.get(clientId)
-      if (p) p.online = false
+      if (p) {
+        const wasOnline = p.online
+        p.online = false
+        if (wasOnline) presenceListener?.(clientId, false, p.snapshot.name)
+      }
       break
     }
   }
@@ -263,9 +310,18 @@ export function startServer(): { ok: boolean; error?: string } {
           }
           liveConnections.set(msg.clientId, ws)
           const known = players.get(msg.clientId)
-          if (known) { known.online = true; known.lastSeen = Date.now(); notify() }
+          if (known) {
+            const cameBack = !known.online
+            known.online = true
+            known.lastSeen = Date.now()
+            if (cameBack) presenceListener?.(msg.clientId, true, known.snapshot.name)
+            notify()
+          }
         }
         try { ws.send(JSON.stringify({ type: 'hello_ok', protocol: PROTOCOL_VERSION })) } catch { /* closing */ }
+        for (const payload of sticky.values()) {
+          try { ws.send(payload) } catch { /* closing */ }
+        }
         return
       }
 
@@ -283,11 +339,19 @@ export function startServer(): { ok: boolean; error?: string } {
       }
       liveConnections.set(clientId, ws)
       const known = players.get(clientId)
-      if (known) { known.online = true; known.lastSeen = Date.now() }
+      if (known) known.lastSeen = Date.now()
+      // A rejoin on a non-snapshot message is announced here; the snapshot
+      // branch below announces its own, so it happens exactly once.
+      if (known && msg.type !== 'snapshot' && !known.online) {
+        known.online = true
+        presenceListener?.(clientId, true, known.snapshot.name)
+      }
 
       if (msg.type === 'snapshot' && msg.data && typeof msg.data === 'object') {
         const snapshot = msg.data as PlayerSnapshot
+        const cameOnline = !known || !known.online
         players.set(clientId, { clientId, snapshot, lastSeen: Date.now(), online: true })
+        if (cameOnline) presenceListener?.(clientId, true, snapshot.name)
         // The listener touches the DB (party roster, combat HP); a bad row
         // shouldn't take the whole server down with an uncaught exception.
         try {
@@ -313,10 +377,11 @@ export function startServer(): { ok: boolean; error?: string } {
       } else if (msg.type === 'roll_result' && typeof msg.total === 'number') {
         const dc = typeof msg.dc === 'number' ? msg.dc : null
         const total = msg.total
-        rollResults.push({
+        const result: RollResult = {
           rollId: typeof msg.rollId === 'string' ? msg.rollId : randomUUID(),
           clientId,
           playerName: players.get(clientId)?.snapshot.name ?? 'Unknown player',
+          kind: typeof msg.kind === 'string' ? msg.kind.slice(0, 24) : '',
           label: typeof msg.label === 'string' ? msg.label.slice(0, 80) : 'Roll',
           total,
           natural: typeof msg.natural === 'number' ? msg.natural : total,
@@ -324,18 +389,26 @@ export function startServer(): { ok: boolean; error?: string } {
           dc,
           success: dc == null ? null : total >= dc,
           at: Date.now()
-        })
+        }
+        rollResults.push(result)
         if (rollResults.length > 150) rollResults.splice(0, rollResults.length - 150)
+        try {
+          rollListener?.(result)
+        } catch (e) {
+          console.error('[partySync] roll handler failed:', e)
+        }
         notify()
       } else if (msg.type === 'command_ack' && typeof msg.id === 'string') {
-        commandLog.push({
+        const ack: CommandAck = {
           id: msg.id,
           clientId,
           ok: msg.ok !== false,
           summary: typeof msg.summary === 'string' ? msg.summary.slice(0, 160) : '',
           at: Date.now()
-        })
+        }
+        commandLog.push(ack)
         if (commandLog.length > 80) commandLog.splice(0, commandLog.length - 80)
+        try { ackListener?.(ack) } catch (e) { console.error('[partySync] ack handler failed:', e) }
         notify()
       }
     })
@@ -427,6 +500,25 @@ export function broadcastCommand(command: DmCommand, only?: string[]): number {
     if (sendCommand(clientId, command).ok) sent++
   }
   return sent
+}
+
+// Sends an arbitrary message to everyone connected (or a subset). With a
+// `stickyKey` it is also remembered and replayed to anyone who joins later.
+export function broadcastRaw(message: Record<string, unknown>, opts: { stickyKey?: string; only?: string[] } = {}): number {
+  const payload = JSON.stringify(message)
+  if (opts.stickyKey) sticky.set(opts.stickyKey, payload)
+  let sent = 0
+  for (const [clientId, ws] of liveConnections) {
+    if (opts.only && !opts.only.includes(clientId)) continue
+    if (ws.readyState !== WebSocket.OPEN) continue
+    try { ws.send(payload); sent++ } catch { /* closing */ }
+  }
+  return sent
+}
+
+export function clearSticky(key?: string): void {
+  if (key) sticky.delete(key)
+  else sticky.clear()
 }
 
 export function isPlayerOnline(clientId: string): boolean {
