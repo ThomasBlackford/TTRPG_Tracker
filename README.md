@@ -23,6 +23,13 @@ Start **Player Sync** on the Party page and players connect with the address and
 - rest easy about privacy: the players' own party chat never passes through the DM's app
 
 ### Encounters
+- **Encounter builder** — plan a fight before the session: add monsters, see the difficulty against your party's real levels with the XP thresholds drawn out, save it, and launch it later in one click (party in, monsters in, initiative rolled, players asked to roll theirs)
+- **Boss fights** — legendary actions (pips that refresh at the start of its turn), legendary resistances, recharge abilities that roll their own d6 at the start of the creature's turn, and a lair-actions turn on initiative 20. A few SRD dragons and other bosses are in the bestiary with these already set
+- **Undo / redo** (`Ctrl+Z` / `Ctrl+Y`) for damage, turns, removals and edits — it also takes back damage you sent to a player's sheet
+- **Concentration** — damage to a concentrating creature raises a Constitution-save card with the DC; roll it for a monster right there, and a player's own roll shows up when they make it. Dropping to 0 ends concentration with no save
+- **Player initiative** — connected players are asked to roll their own initiative when a fight starts (or on demand), and it lands on the tracker
+- **Companions** — a player's familiar or summon gets its own place in the order (needs the matching Companion update to send them)
+- A player's spell slots, Hit Dice and class resources on their row, so you can see who's running dry
 - Built-in bestiary of common SRD creatures plus your own saved monsters; add several at once (numbered "Goblin 1…4") and roll initiative per creature or once per pack
 - Damage and healing, with ½ / ×2 toggles for resistance, vulnerability and crits — applied directly on a connected player's own sheet
 - Timed effects that count down at the end of the affected creature's turn ("Hold Person — 3 rounds"), conditions, and concentration (taking damage prompts the save and its DC)
@@ -33,6 +40,11 @@ Start **Player Sync** on the Party page and players connect with the address and
 - Fog of war, ruler, grid, spotlight and a large library of animated effects for the player-facing display
 - **Creature tokens** that follow the initiative order (the current turn glows), drag to move, hide to stage an ambush, one click to place the whole encounter
 - **Stylized effects** for the player display — eleven bursts (fireball, frost, poison, heal, lightning, impact, rage, counterspell, radiant, necrotic, critical hit), four rays, eight lingering zones and rain/storm weather. Hand-drawn look: flat-shaded, inked shapes with snappy timing, hit-frames and screen shake. They scale with map zoom and are drawn procedurally on canvas (no image or video assets)
+
+### Loot, homebrew and the log
+- **Loot** page: roll individual or hoard treasure by challenge rating (coins, gems, art objects and magic items, in the spirit of the DMG tables), mix in your own homebrew items, then split the coins and hand items straight to players' sheets
+- **Homebrew** page: an editor for your own monsters (full stat block, legendary actions, recharges, lair) and magic items, with **import / export** as a JSON file to trade with other DMs
+- **Session log**: hits (and who dealt them), defeats, conditions, rolls, turns, boss actions, rewards and who joined or left are recorded automatically, grouped by fight. Copy a fight as text, or send its highlights to the Timeline
 
 ### Library & timeline
 Cards for NPCs, items, locations, lore and factions (full-text search with `Ctrl+K`), per-member faction reputation, and a campaign timeline. Cards and images can be pushed to the player display as scenes and handouts.
@@ -98,6 +110,8 @@ npm run fx:preview   # contact-sheet viewer for the visual effects (see tools/fx
 - the backup container (round-trip, truncation, hostile file names)
 - the **real DM server against the real player sync client** — join codes, DM commands, roll results, reconnects, junk frames, a busy port
 - every visual effect, scrubbed through its whole lifetime on a validating fake canvas (no NaN coordinates, negative radii, unbalanced save/restore or leaked blend modes)
+- the treasure generator and the homebrew file format (valid tables, fair coin splits, round-trips)
+- boss-fight tracking, undo/redo, concentration, saved encounters, the session log and player-rolled initiative, against the real IPC handlers
 - the real IPC handlers and SQLite migrations, run inside Electron's own Node runtime (the native database module is built for Electron)
 
 ---

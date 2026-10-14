@@ -21,6 +21,10 @@ import { ScaleConfigModal } from '../components/maps/ScaleConfigModal'
 import { TokenControls } from '../components/maps/TokenControls'
 import { useMapPresentStore } from '../store/mapPresentStore'
 
+// The shared map needs the matching LoreKeeper Companion update to show anything
+// on the players' side, so the button stays hidden until that ships.
+const PLAYER_MAP_READY = false
+
 const DEFAULT_RULER: RulerState = { start: null, end: null, frozen: false, shareToPlayers: false }
 const DEFAULT_FOG_COLS = 64
 const DEFAULT_FOG_ROWS = 64
@@ -792,7 +796,7 @@ export function MapPage() {
             {currentMap && toolBtn('vfx', <Sparkles size={13} />, 'Effects', 'bg-fuchsia-500/20 border-fuchsia-500/40 text-fuchsia-300')}
             {currentMap && toolBtn('tokens', <CircleUser size={13} />, 'Tokens', 'bg-sky-500/20 border-sky-500/40 text-sky-300')}
             {currentMap && toolBtn('pin', <Pin size={13} />, 'Add Pin', 'bg-amber-500/20 border-amber-500/40 text-amber-300')}
-            {currentMap && (
+            {currentMap && PLAYER_MAP_READY && (
               <button
                 onClick={handleShare}
                 title={shareError || (sharing ? "Stop showing this map on the players' screens" : "Show this map, its tokens and fog on the players' own screens (Companion app)")}

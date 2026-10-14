@@ -30,6 +30,9 @@ function Pips({ n, max, tone }: { n: number; max: number; tone: string }) {
   )
 }
 
+// Needs the matching Companion update to do anything on the player's sheet.
+const STABILISE_READY = false
+
 export function CombatantRow({ combatant, rank, isCurrent, live, ownerName, attackerId, onUpdate, onApplyHp, onRemove, onState }: Props) {
   const [hpCurrent, setHpCurrent] = useState(String(combatant.hp_current ?? ''))
   const [hpDelta, setHpDelta] = useState('')
@@ -204,7 +207,7 @@ export function CombatantRow({ combatant, rank, isCurrent, live, ownerName, atta
               <p className={`text-[10px] uppercase tracking-wider ${dead ? 'text-red-500' : stable ? 'text-emerald-400' : 'text-red-400'}`}>
                 {dead ? 'Dead' : stable ? 'Stable' : 'Dying'} · saves ✓{live.death_save_successes ?? 0} ✗{live.death_save_failures ?? 0}
               </p>
-              {!dead && !stable && live.online && (
+              {STABILISE_READY && !dead && !stable && live.online && (
                 <button
                   onClick={async () => onState(await window.api.encounter.stabilize(combatant.id))}
                   className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] uppercase tracking-wider border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition-colors"

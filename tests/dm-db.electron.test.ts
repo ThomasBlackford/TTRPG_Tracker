@@ -22,7 +22,7 @@ function cols(table: string): Set<string> {
 
 test('a fresh database is created at the latest schema', () => {
   initDb(dir)
-  assert.equal((getDb().prepare('SELECT version FROM schema_version').get() as { version: number }).version, 6)
+  assert.equal((getDb().prepare('SELECT version FROM schema_version').get() as { version: number }).version, 7)
   for (const t of ['app_settings', 'monster_templates', 'map_tokens', 'encounter_combatants']) {
     assert.ok(cols(t).size > 0, `${t} exists`)
   }
@@ -39,7 +39,7 @@ test('upgrading from schema v5 adds the new tables and columns without losing da
 
   initDb(dir)
   const d2 = getDb()
-  assert.equal((d2.prepare('SELECT version FROM schema_version').get() as { version: number }).version, 6)
+  assert.equal((d2.prepare('SELECT version FROM schema_version').get() as { version: number }).version, 7)
   assert.ok(cols('map_tokens').size > 0 && cols('monster_templates').size > 0 && cols('app_settings').size > 0)
   assert.ok(cols('encounter_combatants').has('effects'))
   assert.equal((d2.prepare("SELECT name FROM party_members WHERE id='pm1'").get() as { name: string }).name, 'Aria')
